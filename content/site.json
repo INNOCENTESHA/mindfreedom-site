@@ -1,0 +1,32 @@
+{
+  "site": {
+    "url": "https://mindfreedom.co.tz",
+    "email": "info@mindfreedom.co.tz",
+    "whatsapp": "255689012860",
+    "whatsappIcon": "assets/whatsapp.png"
+  },
+  "i18nPath": "content/i18n/",
+  "assistantEndpoint": "",
+  "languages": [
+    {"code": "en", "name": "English", "speech": "en-US"},
+    {"code": "sw", "name": "Kiswahili", "speech": "sw-TZ"},
+    {"code": "es", "name": "Español", "speech": "es-ES"},
+    {"code": "de", "name": "Deutsch", "speech": "de-DE"},
+    {"code": "tr", "name": "Türkçe", "speech": "tr-TR"},
+    {"code": "zh", "name": "中文", "speech": "zh-CN"},
+    {"code": "fil", "name": "Filipino", "speech": "fil-PH"},
+    {"code": "ja", "name": "日本語", "speech": "ja-JP"},
+    {"code": "ar", "name": "العربية", "speech": "ar-SA", "dir": "rtl"},
+    {"code": "ru", "name": "Русский", "speech": "ru-RU"},
+    {"code": "fr", "name": "Français", "speech": "fr-FR"},
+    {"code": "pt", "name": "Português", "speech": "pt-BR"},
+    {"code": "hi", "name": "हिन्दी", "speech": "hi-IN"},
+    {"code": "it", "name": "Italiano", "speech": "it-IT"},
+    {"code": "ko", "name": "한국어", "speech": "ko-KR"},
+    {"code": "id", "name": "Bahasa Indonesia", "speech": "id-ID"},
+    {"code": "nl", "name": "Nederlands", "speech": "nl-NL"},
+    {"code": "vi", "name": "Tiếng Việt", "speech": "vi-VN"},
+    {"code": "pl", "name": "Polski", "speech": "pl-PL"},
+    {"code": "th", "name": "ไทย", "speech": "th-TH"}
+  ]
+}

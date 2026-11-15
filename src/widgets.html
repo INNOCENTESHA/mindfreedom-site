@@ -1,0 +1,29 @@
+<div class="fabs">
+  <button class="fab fab-bot" id="bot-open" type="button" aria-expanded="false" aria-controls="bot" data-i18n-aria="ai_title">
+    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 8V4M9 13v1.5M15 13v1.5"/><circle cx="12" cy="3.5" r="1" fill="currentColor"/></svg>
+    <span data-i18n="ai_title"></span>
+  </button>
+  <a class="fab fab-wa{{WA_CLASS}}" href="https://wa.me/{{WA}}" target="_blank" rel="noopener" data-i18n-aria="wa" title="WhatsApp">
+    {{WA_ICON}}
+    <span>WhatsApp</span>
+  </a>
+</div>
+<section class="bot" id="bot" hidden aria-labelledby="bot-title">
+  <header>
+    <b id="bot-title" data-i18n="ai_title"></b>
+    <button id="bot-voice" type="button" aria-pressed="false" data-i18n-aria="ai_voice" hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg></button>
+    <button id="bot-close" type="button" aria-label="Close">×</button>
+  </header>
+  <div class="bot-log" id="bot-log" role="log" aria-live="polite"></div>
+  <div class="bot-chips" id="bot-chips">
+    <button type="button" data-intent="services" data-i18n="nav_services"></button>
+    <button type="button" data-intent="process" data-i18n="nav_process"></button>
+    <button type="button" data-intent="price" data-i18n="chip_price"></button>
+    <button type="button" data-intent="contact" data-i18n="chip_contact"></button>
+  </div>
+  <form id="bot-form">
+    <input id="bot-in" autocomplete="off" data-i18n-ph="ai_ph" data-i18n-aria="ai_ph">
+    <button type="button" id="bot-mic" data-i18n-aria="ai_mic" hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+    <button type="submit" aria-label="Send"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+  </form>
+</section>
