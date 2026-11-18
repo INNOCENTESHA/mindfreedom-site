@@ -1,2 +1,5 @@
 __pycache__/
 *.pyc
+# user source material (their IP, large binaries) - never commit
+_reference/
+outputs/*.png
