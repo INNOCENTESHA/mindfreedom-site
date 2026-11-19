@@ -4,7 +4,7 @@ Parametric inputs -> plane-frame analysis (BS5400 HB) -> EN 1992-1-1 design.
 Tabs: Model & Design | Analysis (BMD) | Detailing | Schedule (BBS) | Report.
 """
 import sys, os
-os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
+if sys.platform.startswith("linux"): os.environ.setdefault("QT_QPA_PLATFORM", "xcb")     # Windows and macOS use their own
 import numpy as np
 import matplotlib
 matplotlib.use("QtAgg")
@@ -18,6 +18,7 @@ from design import design_flexure, check_shear, bar_area
 import section_bb, math
 from detailing import design as ddesign, checks as dchecks, soil as dsoil, skew as dskew, ec2
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavBar
+import ui_shell as ui, time
 
 BLUE="#1b3a5c"; ACC="#2d7dd2"; OK="#1e8449"; BAD="#c0392b"; LIGHT="#f4f6f9"; CARD="#ffffff"; RED="#c0392b"
 
@@ -45,36 +46,103 @@ class Main(W.QMainWindow):
         self.export=export            # dict read from a CBC_EXPORT.txt, or None
         self.export_path=export_path  # that file: input of the drawing generator
         self.gen_dir=find_generator(); self.drawset=None; self.sheet_cache={}
-        self.setWindowTitle("CBC — Box Culvert Parametric Designer  v0.1")
-        self.resize(1380, 880); self.setStyleSheet(f"QMainWindow{{background:{LIGHT};}}")
-        self._build_header()
-        central=W.QWidget(); self.setCentralWidget(central)
-        root=W.QHBoxLayout(central); root.setContentsMargins(10,8,10,10); root.setSpacing(10)
-        root.addWidget(self._input_panel(),0); root.addWidget(self._view_panel(),1)
-        self.statusBar().showMessage("Ready"); self._apply_export(); self.run()
+        self.setWindowTitle("CBC Designer — Parametric Box Culvert  [untitled]"); self.project_path=None; self.groups={}
+        self.resize(1500, 940); self.setStyleSheet(ui.STYLE)
+        self.setDockOptions(W.QMainWindow.AnimatedDocks|W.QMainWindow.AllowTabbedDocks)
+        # message window (bottom), as analysis packages keep it
+        self.messages=ui.Messages(); dm=W.QDockWidget("Message Window"); dm.setWidget(self.messages); dm.setObjectName("messages")
+        self.addDockWidget(QtCore.Qt.BottomDockWidgetArea,dm); self.dock_msg=dm; self.messages.setMinimumHeight(70)
+        # tree menu (left): works tree of the model, and the parameters
+        self.tree=W.QTreeWidget(); self.tree.setHeaderHidden(True); self.tree.itemClicked.connect(self._tree_clicked); self.tree_slots={}
+        self.left=W.QTabWidget(); self.left.setTabPosition(W.QTabWidget.South)
+        self.left.addTab(self._input_panel(),"Parameters"); self.left.addTab(self.tree,"Works")
+        dl=W.QDockWidget("Tree Menu"); dl.setWidget(self.left); dl.setObjectName("tree"); dl.setMinimumWidth(330); self.addDockWidget(QtCore.Qt.LeftDockWidgetArea,dl); self.dock_tree=dl
+        self.setCentralWidget(self._view_panel())
+        self._build_ribbon(); self.resizeDocks([dm],[130],QtCore.Qt.Vertical); self.resizeDocks([dl],[350],QtCore.Qt.Horizontal)
+        sb=self.statusBar(); self.lb_xy=W.QLabel("X    -      Z    -   m"); self.lb_xy.setMinimumWidth(210); self.lb_size=W.QLabel(""); lu=W.QLabel("  kN, m  ")
+        for wdg in (self.lb_size,self.lb_xy,lu): wdg.setStyleSheet("border-left:1px solid #c3c9d1;padding:0 8px;"); sb.addPermanentWidget(wdg)
+        self.msg("CBC Designer started.  F5 = Perform Analysis and Design.","head")
+        sb.showMessage("Ready"); self._apply_export(); self.run()
+        for k,wdg in vars(self).items():                    # parameters edited after an analysis: results are out of date until F5
+            if k.startswith("i_"): (wdg.currentTextChanged if isinstance(wdg,W.QComboBox) else wdg.valueChanged).connect(self._stale)
 
-    # ---------------- header ----------------
-    def _build_header(self):
-        bar=W.QWidget(); bar.setFixedHeight(58); bar.setSizePolicy(W.QSizePolicy.Expanding,W.QSizePolicy.Fixed); bar.setStyleSheet(f"background:{BLUE};")
-        h=W.QHBoxLayout(bar); h.setContentsMargins(16,0,16,0)
-        t=W.QLabel("CBC   ·   Parametric Box Culvert Designer"); t.setStyleSheet("color:white;font:600 18px 'DejaVu Sans';")
-        sub=W.QLabel("BS 5400 HB · EN 1992-1-1 · 2D frame on elastic foundation"); sub.setStyleSheet("color:#aecbed;font:12px 'DejaVu Sans';")
-        col=W.QVBoxLayout(); col.setSpacing(0); col.addWidget(t); col.addWidget(sub); h.addLayout(col); h.addStretch(1)
-        for name,slot in [("Analyse && Design",self.run),("Export DXF",self.export_dxf)]:
-            b=W.QPushButton(name); b.setCursor(QtCore.Qt.PointingHandCursor)
-            b.setStyleSheet(f"QPushButton{{background:{ACC};color:white;border:none;padding:8px 16px;border-radius:5px;font:600 13px;}}QPushButton:hover{{background:#3b8ee0;}}")
-            b.clicked.connect(slot); h.addWidget(b)
-        tb=W.QToolBar(); tb.setMovable(False); tb.addWidget(bar); tb.setStyleSheet(f"QToolBar{{border:none;padding:0;background:{BLUE};}}")
-        self.addToolBar(QtCore.Qt.TopToolBarArea, tb)
+    def msg(self,text,kind="info",pane="cmd"): self.messages.add(text,kind,pane)
+
+    def _stale(self,*_):
+        if getattr(self,"_fresh_results",False):
+            self._fresh_results=False; self.banner.setStyleSheet("background:#8a94a0;color:white;padding:0 14px;font-weight:600;")
+            self.banner.setText("  Parameters changed — results below belong to the previous model.  Press F5 (Analysis ▸ Perform Analysis) to update.")
+
+    def goto(self,name):
+        for i in range(self.tabs.count()):
+            if self.tabs.tabText(i)==name: self.tabs.setCurrentIndex(i); return
+
+    def show_result(self,display):
+        self.goto("Model View"); self.mv.cb_disp.setCurrentIndex(next(i for i,d in enumerate(ui.DISPLAYS) if d.startswith(display)))
+
+    def show_table(self,kind):
+        self.goto("Tables"); self.tables.cb.setCurrentText(kind); self.tables.fill()
+
+    def focus_group(self,title,widget=None):
+        self.left.setCurrentIndex(0); g=self.groups[title]; self.param_scroll.ensureWidgetVisible(g,0,10)
+        if widget is not None: widget.setFocus(); widget.selectAll() if hasattr(widget,"selectAll") else None
+
+    def _tree_clicked(self,item,_col=0):
+        f=self.tree_slots.get(id(item))
+        if f: f()
+
+    # ---------------- project files ----------------
+    def new_project(self):
+        ui.restore(self,self._defaults); self.project_path=None; self.setWindowTitle("CBC Designer — Parametric Box Culvert  [untitled]"); self.msg("New project with the default parameters."); self.run()
+    def open_project(self,path=None):
+        if not path: path,_=W.QFileDialog.getOpenFileName(self,"Open project","","CBC project (*.cbc);;Parameter export (*.txt)")
+        if not path: return
+        try:
+            if path.lower().endswith(".txt"): self.export=section_bb.read_export(path); self.export_path=path; self.drawset=None; self._apply_export()
+            else: ui.load_project(self,path); self.project_path=path
+        except Exception as ex:
+            self.msg(f"Could not open {path}: {ex}","bad"); return
+        self.setWindowTitle(f"CBC Designer — Parametric Box Culvert  [{os.path.basename(path)}]"); self.msg(f"Opened {path}"); self.run()
+    def save_project(self,path=None):
+        path=path or self.project_path
+        if not path: path,_=W.QFileDialog.getSaveFileName(self,"Save project","culvert.cbc","CBC project (*.cbc)")
+        if not path: return
+        ui.save_project(self,path); self.project_path=path; self.setWindowTitle(f"CBC Designer — Parametric Box Culvert  [{os.path.basename(path)}]"); self.msg(f"Project saved: {path}","ok")
+
+    # ---------------- ribbon ----------------
+    def _build_ribbon(self):
+        G=self.focus_group; R=self.show_result; T=self.show_table
+        spec=[
+         ("File",[("Project",[("New","new",self.new_project,"New project with default parameters"),("Open","open",lambda: self.open_project(),"Open a project (.cbc) or a parameter export (.txt)"),("Save","save",lambda: self.save_project(),"Save the project (Ctrl+S)")]),
+                  ("Export",[("Section\nDXF","dxf",lambda: self.export_dxf(),"Reinforcement section B-B to AutoCAD DXF"),("Drawing set\nDXF","sheets",lambda: self.export_set_dxf(),"All sheets to AutoCAD DXF"),("Drawing set\nPDF","pdf",lambda: self.export_set_pdf(),"All sheets to PDF")]),
+                  ("",[("Exit","exit",self.close,"Close the program")])]),
+         ("Structure",[("Box culvert wizard",[("Cells and\nopenings","cells",lambda: G("Geometry",self.i_cells),"Number of cells, clear span and height"),("Toe","toe",lambda: G("Site and detailing",self.i_toe),"Base projection beyond the outer walls, shared with the wing walls"),("Skew and\nwing walls","skew",lambda: G("Site and detailing",self.i_skew),"Skew of the culvert axis, flare of the wing walls")]),
+                       ("Check structure",[("Nodes","nodes",lambda: T("Nodes"),"Node table"),("Elements","elems",lambda: T("Elements"),"Element table"),("Model\nview","box",lambda: R("Model"),"Analysis model")])]),
+         ("Properties",[("Material",[("Concrete and\nsteel","mat",lambda: G("Materials",self.i_fck),"fck, fyk")]),("Section",[("Thickness","sect",lambda: G("Geometry",self.i_ttop),"Slab and wall thicknesses"),("Cover and\nexposure","cover",lambda: G("Site and detailing",self.i_expo),"Exposure class, cover, crack width limit")])]),
+         ("Boundary",[("Supports",[("Soil\nsprings","spring",lambda: G("Loading — BS 5400",self.i_ks),"Modulus of subgrade reaction (Winkler)"),("Ground\nprofile","soil",lambda: self.goto("Ground · Plan"),"Soil strata and water table")])]),
+         ("Load",[("Static loads",[("Load\ncases","load",lambda: T("Static load cases"),"Static load case table"),("Earth\npressure","earth",lambda: G("Loading — BS 5400",self.i_k0),"Soil weight, K0, surcharge"),("Display\nloads","load",lambda: R("Loads"),"Show the loads of the selected case")]),
+                  ("Moving load",[("HB\nvehicle","truck",lambda: G("Loading — BS 5400",self.i_hb),"BS 5400 HB units")]),("Combinations",[("Load\ncombinations","combo",lambda: T("Load combinations"),"EN 1990 combinations generated")])]),
+         ("Analysis",[("Perform",[("Perform\nAnalysis","run",self.run,"Analyse and design (F5)")]),("Messages",[("Analysis\nmessages","report",lambda: (self.dock_msg.show(),self.messages.setCurrentIndex(1)),"Analysis message window")])]),
+         ("Results",[("Results",[("Reactions","react",lambda: R("Reactions"),"Ground pressure and spring reactions"),("Deformed\nshape","deform",lambda: R("Deformed shape"),"Displacements"),("Moment\nMy","moment",lambda: R("Bending moment"),"Bending moment diagram"),("Shear\nFz","shear",lambda: R("Shear force"),"Shear force diagram"),("Axial\nFx","axial",lambda: R("Axial force"),"Axial force diagram")]),
+                     ("Tables",[("Displace-\nments","table",lambda: T("Displacements"),"Displacement table"),("Reactions","table",lambda: T("Reactions"),"Reaction table"),("Beam\nforces","table",lambda: T("Beam forces"),"Beam force table")])]),
+         ("Design",[("RC design — EN 1992-1-1",[("Member\ndesign","design",lambda: self.goto("Design"),"Flexure, cracking, shear of every member"),("Code\nchecks","check",lambda: self.goto("Code checks"),"Clause-by-clause checks"),("Report","report",lambda: self.goto("Report"),"Calculation report")])]),
+         ("Detailing",[("Reinforcement",[("Section\nB-B","rebar",lambda: self.goto("Detailing"),"Reinforcement arrangement"),("Bar\nschedule","bbs",lambda: self.goto("Schedule (BBS)"),"Bar bending schedule, BS 8666"),("Ground\nand plan","plan",lambda: self.goto("Ground · Plan"),"Strata, skewed plan, wing walls")])]),
+         ("Drawings",[("Drawing set",[("Generate\nsheets","sheets",lambda: self.goto("Drawings"),"Produce all sheets"),("To AutoCAD\nDXF","dxf",lambda: self.export_set_dxf(),"All sheets to DXF"),("To PDF","pdf",lambda: self.export_set_pdf(),"All sheets to PDF")])]),
+         ("View",[("Windows",[("Tree\nMenu","table",lambda: self.dock_tree.setVisible(not self.dock_tree.isVisible()),"Show / hide the tree menu"),("Message\nWindow","report",lambda: self.dock_msg.setVisible(not self.dock_msg.isVisible()),"Show / hide the message window")]),
+                  ("Display",[("Node\nnumbers","nodes",lambda: self.mv.t_nodes.toggle(),"Node numbers in the model view"),("Element\nnumbers","elems",lambda: self.mv.t_elems.toggle(),"Element numbers in the model view"),("Zoom\nfit","fit",lambda: self.mv.draw(),"Fit the model in the view")])]),
+        ]
+        self.ribbon=ui.Ribbon(spec); tb=W.QToolBar("Ribbon"); tb.setMovable(False); tb.setObjectName("ribbon"); tb.addWidget(self.ribbon); tb.setStyleSheet("QToolBar{border:none;padding:0;}")
+        self.addToolBar(QtCore.Qt.TopToolBarArea,tb); self.ribbon.setCurrentIndex(5)
+        for key,slot in (("F5",self.run),("Ctrl+S",lambda: self.save_project()),("Ctrl+O",lambda: self.open_project()),("Ctrl+N",self.new_project)):
+            QtGui.QShortcut(QtGui.QKeySequence(key),self,slot)
 
     def _card(self,title):
-        box=W.QGroupBox(title)
-        box.setStyleSheet(f"QGroupBox{{background:{CARD};border:1px solid #dde3ea;border-radius:7px;margin-top:10px;font:600 12px;color:{BLUE};}}QGroupBox::title{{subcontrol-origin:margin;left:12px;padding:0 5px;}}")
+        box=W.QGroupBox(title); self.groups[title]=box
         return box
 
     # ---------------- input panel ----------------
     def _input_panel(self):
-        panel=W.QWidget(); panel.setFixedWidth(320); v=W.QVBoxLayout(panel); v.setContentsMargins(0,0,0,0); v.setSpacing(8)
+        panel=W.QWidget(); v=W.QVBoxLayout(panel); v.setContentsMargins(6,4,6,6); v.setSpacing(6)
         g=self._card("Geometry"); gl=W.QFormLayout(g); gl.setLabelAlignment(QtCore.Qt.AlignRight)
         self.i_cells=spin(4,1,8,1); self.i_span=spin(1.5,0.5,6,0.1,2); self.i_height=spin(1.5,0.5,6,0.1,2)
         self.i_ttop=spin(0.25,0.15,0.6,0.025,3); self.i_tbase=spin(0.25,0.15,0.6,0.025,3)
@@ -103,27 +171,22 @@ class Main(W.QMainWindow):
             ("Exposure class",self.i_expo),("Crack width limit (mm)",self.i_wk)]:
             sl.addRow(lab,wdg)
         v.addWidget(st); v.addStretch(1)
-        sc=W.QScrollArea(); sc.setWidget(panel); sc.setWidgetResizable(True); sc.setFixedWidth(345)
-        sc.setFrameShape(W.QFrame.NoFrame); sc.setStyleSheet(f"QScrollArea{{background:{LIGHT};}}")
+        sc=W.QScrollArea(); sc.setWidget(panel); sc.setWidgetResizable(True); sc.setFrameShape(W.QFrame.NoFrame); self.param_scroll=sc
         return sc
 
     # ---------------- view panel (tabs) ----------------
     def _view_panel(self):
-        panel=W.QWidget(); v=W.QVBoxLayout(panel); v.setContentsMargins(0,0,0,0); v.setSpacing(8)
-        self.banner=W.QLabel("—"); self.banner.setFixedHeight(54); self.banner.setAlignment(QtCore.Qt.AlignVCenter); v.addWidget(self.banner)
-        self.tabs=W.QTabWidget()
-        self.tabs.setStyleSheet("QTabBar::tab{padding:8px 18px;font:600 12px;color:#4a627a;background:#e7edf3;border:1px solid #dde3ea;border-bottom:none;border-top-left-radius:6px;border-top-right-radius:6px;margin-right:2px;}" "QTabBar::tab:selected{background:#ffffff;color:#1b3a5c;}" "QTabWidget::pane{border:1px solid #dde3ea;border-radius:0 7px 7px 7px;background:#ffffff;}")
+        panel=W.QWidget(); v=W.QVBoxLayout(panel); v.setContentsMargins(0,0,0,0); v.setSpacing(0)
+        self.banner=W.QLabel("—"); self.banner.setFixedHeight(30); self.banner.setAlignment(QtCore.Qt.AlignVCenter); v.addWidget(self.banner)
+        self.tabs=W.QTabWidget(); self.tabs.setTabPosition(W.QTabWidget.South); self.tabs.setDocumentMode(True)
+        self.mv=ui.ModelView(self); self.tabs.addTab(self.mv,"Model View")
         # Tab 1 — Model & Design
         t1=W.QWidget(); l1=W.QVBoxLayout(t1)
         self.fig1=Figure(figsize=(8,3.5),facecolor="white"); self.cv1=Canvas(self.fig1); l1.addWidget(self.cv1,3)
         self.table=W.QTableWidget(0,7); self.table.setHorizontalHeaderLabels(["Check","Location","Action","Required","Provided","Util.","Status"])
         self.table.horizontalHeader().setStretchLastSection(True); self.table.verticalHeader().setVisible(False)
-        self.table.setStyleSheet("QTableWidget{font:12px 'DejaVu Sans';gridline-color:#e3e8ee;}QHeaderView::section{background:#eef2f7;padding:5px;border:none;font:600 12px;color:#30506f;}")
         self.table.setEditTriggers(W.QAbstractItemView.NoEditTriggers); l1.addWidget(self.table,2)
-        self.tabs.addTab(t1,"Model · Design")
-        # Tab 2 — Analysis
-        t2=W.QWidget(); l2=W.QVBoxLayout(t2); self.fig2=Figure(figsize=(8,6),facecolor="white"); self.cv2=Canvas(self.fig2); l2.addWidget(self.cv2)
-        self.tabs.addTab(t2,"Analysis")
+        self.tabs.addTab(t1,"Design")
         # Tab 3 — Detailing
         t3=W.QWidget(); l3=W.QVBoxLayout(t3); l3.setContentsMargins(4,4,4,4); l3.setSpacing(2)
         self.fig3=Figure(figsize=(8,6),facecolor="black"); self.cv3=Canvas(self.fig3)
@@ -134,7 +197,7 @@ class Main(W.QMainWindow):
         t4=W.QWidget(); l4=W.QVBoxLayout(t4)
         self.bbs=W.QTableWidget(0,8); self.bbs.setHorizontalHeaderLabels(["Mark","Member","Bar","No.","Shape (BS 8666)","A (mm)","Length (mm)","Mass (kg)"])
         self.bbs.horizontalHeader().setStretchLastSection(True); self.bbs.verticalHeader().setVisible(False)
-        self.bbs.setStyleSheet(self.table.styleSheet()); self.bbs.setEditTriggers(W.QAbstractItemView.NoEditTriggers); l4.addWidget(self.bbs)
+        self.bbs.setEditTriggers(W.QAbstractItemView.NoEditTriggers); l4.addWidget(self.bbs)
         self.tabs.addTab(t4,"Schedule (BBS)")
         # Tab 5 — Report
         t5=W.QWidget(); l5=W.QVBoxLayout(t5); self.report=W.QTextEdit(); self.report.setReadOnly(True)
@@ -144,7 +207,7 @@ class Main(W.QMainWindow):
         tc=W.QWidget(); lc=W.QVBoxLayout(tc); self.lb_chk=W.QLabel(""); self.lb_chk.setStyleSheet(f"font:600 13px;color:{BLUE};padding:4px;"); lc.addWidget(self.lb_chk)
         self.chk=W.QTableWidget(0,7); self.chk.setHorizontalHeaderLabels(["Group","Clause","Item","Value","Limit","Status","Basis / note"])
         self.chk.horizontalHeader().setStretchLastSection(True); self.chk.verticalHeader().setVisible(False)
-        self.chk.setStyleSheet(self.table.styleSheet()); self.chk.setEditTriggers(W.QAbstractItemView.NoEditTriggers); lc.addWidget(self.chk)
+        self.chk.setEditTriggers(W.QAbstractItemView.NoEditTriggers); lc.addWidget(self.chk)
         self.tabs.addTab(tc,"Code checks")
         # Ground and plan: soil strata, water, skewed plan with the wing walls
         tg=W.QWidget(); lg=W.QHBoxLayout(tg); lft=W.QVBoxLayout()
@@ -153,7 +216,7 @@ class Main(W.QMainWindow):
         self.soil=W.QTableWidget(4,8); self.soil.setHorizontalHeaderLabels(["Layer","Thickness m","γ kN/m³","γsat kN/m³","φ′ °","c′ kPa","cu kPa","E′ MPa"])
         for r,rowv in enumerate([("Fill / embankment",1.5,19,20,30,0,"",20),("Firm to stiff clay",3.0,19,20,26,5,90,25),("Dense sand",10.0,20,21,36,0,"",60),("",0,"","","","","","")]):
             for c,val in enumerate(rowv): self.soil.setItem(r,c,W.QTableWidgetItem(str(val)))
-        self.soil.setStyleSheet(self.table.styleSheet()); self.soil.resizeColumnsToContents(); self.soil.setMaximumHeight(170); lft.addWidget(self.soil)
+        self.soil.resizeColumnsToContents(); self.soil.setMaximumHeight(170); lft.addWidget(self.soil)
         wr=W.QHBoxLayout(); wr.addWidget(W.QLabel("Water table below ground (m, 0 = none)")); self.i_water=spin(0.0,0.0,30.0,0.5,2); wr.addWidget(self.i_water); wr.addStretch(1); lft.addLayout(wr)
         self.ground_txt=W.QTextEdit(); self.ground_txt.setReadOnly(True); self.ground_txt.setStyleSheet(f"QTextEdit{{background:{CARD};border:none;font:12px 'DejaVu Sans';}}"); lft.addWidget(self.ground_txt,1)
         lg.addLayout(lft,5)
@@ -170,7 +233,9 @@ class Main(W.QMainWindow):
         self.sheet_view.setStyleSheet("background:#ffffff;color:#4a627a;font:13px;")
         sc=W.QScrollArea(); sc.setWidget(self.sheet_view); sc.setWidgetResizable(True); l6.addWidget(sc,1)
         self.tabs.addTab(t6,"Drawings")
-        self.tabs.currentChanged.connect(lambda i: self.open_drawings() if self.tabs.tabText(i)=="Drawings" else None)
+        self.tables=ui.Tables(self); self.tabs.addTab(self.tables,"Tables")
+        self.mv.cb_lc.currentIndexChanged.connect(lambda _: self.tables.fill() if self.tabs.tabText(self.tabs.currentIndex())=="Tables" else None)
+        self.tabs.currentChanged.connect(lambda i: self.open_drawings() if self.tabs.tabText(i)=="Drawings" else (self.tables.fill() if self.tabs.tabText(i)=="Tables" else None))
         v.addWidget(self.tabs,1); return panel
 
     def _apply_export(self):
@@ -217,9 +282,16 @@ class Main(W.QMainWindow):
 
     # ---------------- run ----------------
     def run(self):
-        self.statusBar().showMessage("Analysing…"); pdui()
-        p=self.params(); self.box=Box(p).analyse(); self.p=p
+        self.statusBar().showMessage("Analysing…"); pdui(); t0=time.time()
+        if not hasattr(self,"_defaults"): self._defaults=ui.collect(self)
+        A=lambda t,k="info": self.msg(t,k,"ana")
+        p=self.params(); A("─"*74); A("PERFORM ANALYSIS  —  plane frame on elastic foundation, 1 m strip","head")
+        self.box=Box(p); nn=len(self.box.fr.nodes); ne=len(self.box.fr.elements)
+        A(f"model      : {nn} nodes, {ne} beam elements, {len(self.box.base_nodes)} soil springs (ks = {self.box.ks:,.0f} kN/m³), {3*nn} degrees of freedom"); pdui()
+        self.box.analyse(); self.p=p
+        A(f"load cases : 5 static (SW, EV, EH, LS, LS1) + {len(self.box.hb_keys)} positions of the HB vehicle  —  solved in {time.time()-t0:.2f} s")
         self.uls=self.box.uls_combos(); self.sls=self.box.sls_combos()
+        A(f"combinations: {len(self.uls)} ULS + {len(self.sls)} SLS (EN 1990, min / max earth pressure, surcharge on both sides or one)")
         self.bearing_sls=max(self.box.bearing(c)[0] for c in self.sls)
         self.bearing_uls=max(self.box.bearing(c)[0] for c in self.uls)
         # member design to EN 1992-1-1: flexure, minimum steel, spacing, crack width, shear at d (links when needed)
@@ -251,10 +323,60 @@ class Main(W.QMainWindow):
         self._fill_code_checks()
         ok=all(r[6] for r in rows) and nbad==0
         status="PASS" if ok else "REVIEW"; col=OK if ok else BAD
-        self.banner.setStyleSheet(f"background:{col};color:white;border-radius:7px;padding:0 18px;font:600 15px 'DejaVu Sans';")
+        self.banner.setStyleSheet(f"background:{col};color:white;padding:0 14px;font-weight:600;")
         self.banner.setText(f"  DESIGN {status}     ·     Max utilisation {self.maxutil:.2f}     ·     Governing: {self.govern}     ·     Bearing SLS {self.bearing_sls:.0f} / ULS {self.bearing_uls:.0f} kPa     ·     {len(self.checks)-nbad}/{len(self.checks)} code checks")
-        self._draw_bb(self.fig1,p,False); self._draw_bmd(p); self._draw_bb(self.fig3,p,True); self._fill_bbs(p); self._fill_report(p); self._fill_ground(p)
-        self.statusBar().showMessage(f"{p.n_cells}-cell {p.span:.2f}×{p.height:.2f} m · {len(self.box.u)} load cases · governing {self.govern}")
+        self.mv.set_box(self.box,self.uls,self.sls)
+        self._draw_bb(self.fig1,p,False); self._draw_bb(self.fig3,p,True); self._fill_bbs(p); self._fill_report(p); self._fill_ground(p); self._fill_tree(p)
+        if self.tabs.tabText(self.tabs.currentIndex())=="Tables": self.tables.fill()
+        A(f"design     : EN 1992-1-1 member design, max utilisation {self.maxutil:.2f} ({self.govern})")
+        for r in rows:
+            if not r[6]: A(f"NOT SATISFIED  {r[0]} — {r[1]}: {r[2]} against {r[3]}","bad")
+        for ck in self.checks:
+            if not ck["ok"]: A(f"NOT SATISFIED  {ck['group']} {ck['clause']} — {ck['item']}: {ck['value']} (limit {ck['limit']})","bad")
+        A(f"SOLUTION TERMINATED  —  total time {time.time()-t0:.2f} s","ok" if ok else "warn")
+        self.msg(f"Analysis and design completed: DESIGN {status}, max utilisation {self.maxutil:.2f}, {len(self.checks)-nbad}/{len(self.checks)} code checks.","ok" if ok else "warn")
+        self._fresh_results=True; self.lb_size.setText(f"{nn} nodes · {ne} elements · {len(self.box.u)} load cases")
+        self.statusBar().showMessage(f"{p.n_cells}-cell {p.span:.2f}×{p.height:.2f} m · governing {self.govern}")
+
+    def _fill_tree(self,p):
+        """Works tree: what the model holds, each entry opening its table, view or parameter."""
+        t=self.tree; t.clear(); self.tree_slots={}; b=self.box; G=self.focus_group; R=self.show_result; T=self.show_table
+        def node(parent,text,slot=None,bold=False):
+            it=W.QTreeWidgetItem(parent,[text])
+            if bold: f=it.font(0); f.setBold(True); it.setFont(0,f)
+            if slot: self.tree_slots[id(it)]=slot
+            return it
+        w=node(t,"Works",bold=True)
+        s_=node(w,"Structure",bold=True)
+        node(s_,f"Box culvert : {p.n_cells} cell(s) {p.span*1000:.0f} × {p.height*1000:.0f}",lambda: G("Geometry",self.i_cells))
+        node(s_,f"Nodes : {len(b.fr.nodes)}",lambda: T("Nodes")); node(s_,f"Elements : {len(b.fr.elements)}",lambda: T("Elements"))
+        if p.toe>0: node(s_,f"Toe : {p.toe*1000:.0f} mm each side",lambda: G("Site and detailing",self.i_toe))
+        node(s_,f"Skew {self.i_skew.value():.0f}°, wing wall flare {self.i_flare.value():.0f}°",lambda: G("Site and detailing",self.i_skew))
+        pr=node(w,"Properties",bold=True)
+        m=node(pr,"Material : 1"); node(m,f"1 : C{p.fck:.0f}  (Ecm {p.Ecm:,.0f} MPa), steel fyk {p.fyk:.0f}",lambda: G("Materials",self.i_fck))
+        sec=node(pr,"Section : "+("4" if p.n_cells>1 else "3"))
+        for i,(nm,th) in enumerate([("Top slab",p.t_top),("Base slab",p.t_base),("Outer walls",p.t_wall)]+([("Piers",p.t_pier)] if p.n_cells>1 else [])):
+            node(sec,f"{i+1} : {nm}  1000 × {th*1000:.0f}",lambda: G("Geometry",self.i_ttop))
+        bd=node(w,"Boundaries",bold=True)
+        node(bd,f"Point spring supports : {len(b.base_nodes)}  (ks {b.ks:,.0f} kN/m³)",lambda: G("Loading — BS 5400",self.i_ks))
+        node(bd,"Ground profile : "+("layered" if p.profile is not None else "uniform"),lambda: self.goto("Ground · Plan"))
+        lc=node(w,f"Static Load Cases : {len(b.u)}",bold=True)
+        def pick(key): return lambda: (self.mv.cb_lc.setCurrentText(ui.case_title(key)),R("Loads"))
+        for i,k in enumerate(ui.STATIC): node(lc,f"{i+1} : {ui.case_title(k)}",pick(k))
+        hb=node(lc,f"Moving load, HB {p.hb_units:g} units : {len(b.hb_keys)} positions",lambda: G("Loading — BS 5400",self.i_hb))
+        for k in b.hb_keys: node(hb,ui.case_title(k),pick(k))
+        cb=node(w,f"Load Combinations : {len(self.uls)+len(self.sls)}",lambda: T("Load combinations"),bold=True)
+        node(cb,f"ULS : {len(self.uls)}",lambda: T("Load combinations")); node(cb,f"SLS : {len(self.sls)}",lambda: T("Load combinations"))
+        rs=node(w,"Results",bold=True)
+        for nm,d in (("Reactions","Reactions"),("Deformed shape","Deformed shape"),("Bending moment diagram","Bending moment"),("Shear force diagram","Shear force"),("Axial force diagram","Axial force")): node(rs,nm,(lambda d=d: R(d)))
+        tb=node(rs,"Result tables")
+        for k in ("Displacements","Reactions","Beam forces"): node(tb,k,(lambda k=k: T(k)))
+        ds=node(w,"Design",bold=True)
+        node(ds,f"Member design : utilisation {self.maxutil:.2f}",lambda: self.goto("Design")); nb=sum(1 for c in self.checks if not c["ok"])
+        node(ds,f"Code checks : {len(self.checks)-nb} / {len(self.checks)}",lambda: self.goto("Code checks")); node(ds,"Report",lambda: self.goto("Report"))
+        dt=node(w,"Detailing and drawings",bold=True)
+        for nm in ("Detailing","Schedule (BBS)","Ground · Plan","Drawings"): node(dt,nm,(lambda nm=nm: self.goto(nm)))
+        t.expandToDepth(1); hb.setExpanded(False)
 
     def _fill_code_checks(self):
         rows=self.checks; self.chk.setRowCount(len(rows)); nbad=0
@@ -669,7 +791,14 @@ def main():
         if flag in sys.argv: wdg.setValue(type(wdg.value())(float(sys.argv[sys.argv.index(flag)+1]))); redo=True
     if "--ground" in sys.argv: win.use_ground.setChecked(True); redo=True
     if redo: win.run()
-    win.show(); win.tabs.setCurrentIndex(tab)
+    win.show()
+    if "--view" in sys.argv: win.show_result(sys.argv[sys.argv.index("--view")+1])
+    elif "--table" in sys.argv: win.show_table(sys.argv[sys.argv.index("--table")+1])
+    elif "--page" in sys.argv: win.goto(sys.argv[sys.argv.index("--page")+1])
+    else: win.tabs.setCurrentIndex(tab)
+    if "--lc" in sys.argv: win.mv.cb_lc.setCurrentIndex(int(sys.argv[sys.argv.index("--lc")+1]))
+    if "--ribbon" in sys.argv: win.ribbon.setCurrentIndex(int(sys.argv[sys.argv.index("--ribbon")+1]))
+    if "--works" in sys.argv: win.left.setCurrentIndex(1)
     if shot:
         def grab():
             if "--dxf" in sys.argv: win.export_dxf(sys.argv[sys.argv.index("--dxf")+1])

@@ -11,14 +11,39 @@ style) on a Winkler soil mat, Eurocode 2 limit-state RC design, and AutoCAD
 - `dxf_export.py` – AutoCAD DXF generator (ezdxf)
 - `run.py`    – end-to-end: analyse -> design -> DXF + calc report
 
-## Run
-```bash
-pip install numpy ezdxf
-python run.py   # writes outputs/box_culvert.dxf + report
-```
+## Starting the program
 
-## Requirements
-numpy, ezdxf (matplotlib optional, for PNG preview).
+**Windows** — install Python 3.11 or newer from python.org (tick *Add python.exe to PATH*), then double-click
+`CBC_Designer.bat`. The first start creates a private environment in `.venv` and installs the libraries of
+`requirements.txt` (internet needed once); later starts open the window directly. A `CBC_EXPORT.txt` placed next to
+the program is loaded automatically, or drag one onto the `.bat` file.
+
+`build_exe.bat` builds a stand-alone `dist\CBC_Designer\CBC_Designer.exe` with PyInstaller, for computers without Python.
+
+**Any system, from a terminal**
+
+    pip install -r requirements.txt
+    python app.py                              # default 4-cell culvert
+    python app.py --export CBC_EXPORT.txt      # structure and drawing set of a parameter export
+
+The drawing sheets need the generator files in a `generator` folder next to `app.py` (or `CBC_GENERATOR_DIR`).
+
+## Workspace
+
+- **Ribbon** — File, Structure, Properties, Boundary, Load, Analysis, Results, Design, Detailing, Drawings, View.
+- **Tree Menu** — *Parameters* (all inputs) and *Works* (structure, properties, boundaries, load cases, combinations,
+  results; every entry opens its table, view or input).
+- **Model View** — model, loads, deformed shape, reactions, and moment / shear / axial diagrams with a banded legend,
+  for any load case, the governing combination or the envelope; node and element numbers on demand.
+- **Tables** — nodes, elements, load cases, combinations, displacements, reactions, beam forces (copy to Excel).
+- **Message Window** — command and analysis messages, with every unsatisfied check listed.
+- `F5` analyse and design, `Ctrl+S` / `Ctrl+O` save and open a project (`.cbc`), `Ctrl+N` new.
+
+## Verification
+
+    python -m pytest tests                     # closed-form frames, workbook comparison, detailing rules, GUI, drawing runtime
+    python tests/scenarios.py 500              # what-if sweep with invariants (statics, code limits, bars inside the concrete)
+    python tests/drawing_whatifs.py CBC_EXPORT.txt generator   # altered structures through the drawing generator
 
 ## Drawing set without AutoCAD (`cbcdraw/`)
 

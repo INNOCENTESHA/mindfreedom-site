@@ -122,7 +122,21 @@ class Frame:
             K[3*i, 3*i]     += nd.kx + (BIG if nd.fixed[0] else 0)
             K[3*i+1, 3*i+1] += nd.ky + (BIG if nd.fixed[1] else 0)
             K[3*i+2, 3*i+2] += nd.kr + (BIG if nd.fixed[2] else 0)
-        u = np.linalg.solve(K, F)
+        # the stiffness matrix is the same for every load case of a model: factorise it once
+        sig = (ndof, float(K.sum()), float(np.abs(K).sum()), float(K.diagonal() @ np.arange(1, ndof + 1)))
+        if getattr(self, "_sig", None) != sig:
+            self._sig = sig
+            try:
+                from scipy.linalg import lu_factor
+                self._lu = lu_factor(K); self._Kinv = None
+            except ImportError:
+                self._lu = None; self._Kinv = np.linalg.inv(K)
+        if self._lu is not None:
+            from scipy.linalg import lu_solve
+            u = lu_solve(self._lu, F)
+        else:
+            u = self._Kinv @ F
+            for _ in range(2): u = u + self._Kinv @ (F - K @ u)      # iterative refinement: residual to rounding level
         # recover member end forces (local): f = kl*T*u_e + fef_l
         results = []
         for e, (L, c, s, kl, T, fef_l) in zip(self.elements, fef_store):

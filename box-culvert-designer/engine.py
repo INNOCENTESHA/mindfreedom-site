@@ -35,7 +35,7 @@ class P:
     hb_wheel: float = 93.75    # kN  (= units*10/4)
     hb_axle_sp: float = 1.8    # m (inner axle spacing)
     hb_wheel_sp: float = 1.0   # m (across axle)
-    hb_disp_fill: float = 1.0  # m, fill used to disperse (2V:1H)
+    hb_disp_fill: object = None  # m added to the wheel contact length; None = the fill depth (2V:1H through the fill)
     hb_step: float = 0.225     # m
     # factors
     gG: float = 1.35
@@ -133,7 +133,9 @@ class Box:
             self.fr.nodes[nid].ky += self.ks*trib
             self.fr.nodes[nid]._trib=trib
         # remove horizontal rigid-body: tiny x-restraint at base mid
-        self.fr.nodes[self.base_nodes[0]].kx += 1e-3
+        # horizontal restraint at the middle of the base: it carries only the out-of-balance of one-sided surcharge,
+        # and is stiff so that the model has no near-rigid-body sway (which costs numerical precision)
+        self.fr.nodes[self.base_nodes[len(self.base_nodes)//2]].kx += 1e7
 
     # ---------- loads ----------
     def _fresh(self):
@@ -170,8 +172,8 @@ class Box:
                         zi=(Hc-self.fr.nodes[ni].y)+p.fill+p.t_top/2; zj=(Hc-self.fr.nodes[nj].y)+p.fill+p.t_top/2
                         li=pr.lateral_at_rest(max(zi,0)); lj=pr.lateral_at_rest(max(zj,0))
                         pi=li['earth']+li['water']; pj=lj['earth']+lj['water']
-                    else:
-                        zi=(Hc-self.fr.nodes[ni].y)+p.fill; zj=(Hc-self.fr.nodes[nj].y)+p.fill
+                    else:                                   # depth below ground: fill + half the top slab + below its centre line
+                        zi=(Hc-self.fr.nodes[ni].y)+p.fill+p.t_top/2; zj=(Hc-self.fr.nodes[nj].y)+p.fill+p.t_top/2
                         pi=kg*max(zi,0); pj=kg*max(zj,0)
                     sgn=self._inward(ei,self.W_cl/2,Hc/2)
                     self.fr.elements[ei].wt_i+=sgn*pi; self.fr.elements[ei].wt_j+=sgn*pj
@@ -199,7 +201,7 @@ class Box:
         p=self.p
         # dispersal width (along strip) = contact + fill spread; per-metre line load
         contact=np.sqrt(p.hb_wheel/ (p.__dict__.get('hb_press',1.1)*1000))  # m (approx square)
-        bw=contact + p.hb_disp_fill                # 2V:1H -> +H each... total +fill
+        bw=contact + (p.fill if p.hb_disp_fill is None else p.hb_disp_fill)   # 2V:1H: half the depth each side
         # load per metre of strip over width bw, for one wheel line in 1 m strip
         w_line = p.hb_wheel / bw                    # kN/m over bw
         axles=[x0] + ([x0+p.hb_axle_sp] if two else [])
@@ -217,11 +219,14 @@ class Box:
                 frac=ov/(hi-lo); e.gy+=-w*frac   # approx: fraction of element covered
 
     def hb_positions(self):
-        p=self.p; xs=[]; x=0.0
-        while x<=self.W_cl+1e-9: xs.append(round(x,4)); x+=p.hb_step
+        """Axle positions: every cell divided into an even number of steps, so mid-span and quarter points are always loaded."""
+        p=self.p; xs=[]
+        for k in range(len(self.wall_x)-1):
+            a,b=self.wall_x[k],self.wall_x[k+1]
+            nd=2*max(4,int((b-a)/p.hb_step/2+0.5))
+            for j in range(0 if k==0 else 1,nd+1): xs.append(round(a+(b-a)*j/nd,4))
         return xs
 
-    # ---------- analysis driver ----------
     def analyse(self):
         """Run all static cases + HB moving positions; store u and member forces."""
         self.u={}; self.F={}
@@ -244,11 +249,12 @@ class Box:
             tot=fac*self.u[k] if tot is None else tot+fac*self.u[k]
         return tot
     def combine_F(self, fmap):
-        ne=len(self.fr.elements); out=[np.zeros(6) for _ in range(ne)]
+        tot=None
         for k,fac in fmap.items():
             Fk=self.F[k]
-            for i in range(ne): out[i]=out[i]+fac*Fk[i]
-        return out
+            if not isinstance(Fk,np.ndarray): Fk=self.F[k]=np.array(Fk)
+            tot=fac*Fk if tot is None else tot+fac*Fk
+        return tot
 
     def bearing(self, fmap):
         u=self.combine_u(fmap); pr=[]; Rs=[]
@@ -268,22 +274,33 @@ class Box:
         return dict(Mmin=Mmin,Mmax=Mmax,Vmax=Vmax,Nmax=Nmax)
 
     def uls_combos(self):
-        """EC2 STR: 1.35G + 1.35Q, HB leading (one HB case at a time)."""
-        p=self.p; base={'SW':p.gG,'EV':p.gG,'EH':p.gG}
-        combos=[]
-        for hb in self.hb_keys:
-            c=dict(base); c['LS']=p.gQ; c[hb]=p.gQ; combos.append(c)
-        # also surcharge-leading without HB, and min-G uplift case
-        c=dict(base); c['LS']=p.gQ; combos.append(c)
+        """EN 1990 STR with HB as the leading variable action, one axle position at a time:
+        a) full lateral earth pressure with surcharge on both walls,
+        b) minimum lateral pressure (gamma_G,inf) and no surcharge - governs the sagging of the slabs,
+        c) minimum lateral pressure with surcharge on one wall only - sway.
+        Plus the same three without traffic."""
+        p=self.p; combos=[]
+        for hb in self.hb_keys+[None]:
+            a={'SW':p.gG,'EV':p.gG,'EH':p.gG,'LS':p.gQ}
+            b={'SW':p.gG,'EV':p.gG,'EH':p.gG_min}
+            c={'SW':p.gG,'EV':p.gG,'EH':p.gG_min,'LS1':p.gQ}
+            for cmb in (a,b,c):
+                if hb: cmb[hb]=p.gQ
+                combos.append(cmb)
         return combos
 
     def sls_combos(self):
-        p=self.p; base={'SW':1.0,'EV':1.0,'EH':1.0}
-        combos=[]
-        for hb in self.hb_keys:
-            c=dict(base); c['LS']=1.0; c[hb]=1.0; combos.append(c)
-        c=dict(base); c['LS']=1.0; combos.append(c)
+        """Characteristic combination: all actions at 1.0, each axle position in turn (and none)."""
+        base={'SW':1.0,'EV':1.0,'EH':1.0,'LS':1.0}; combos=[]
+        for hb in self.hb_keys+[None]:
+            c=dict(base)
+            if hb: c[hb]=1.0
+            combos.append(c)
         return combos
+
+    def qp_combo(self):
+        """Quasi-permanent combination: permanent actions only (psi2 = 0 for HB and surcharge)."""
+        return {'SW':1.0,'EV':1.0,'EH':1.0}
 
     # ---------- internal actions along the members ----------
     def _chain(self, els):

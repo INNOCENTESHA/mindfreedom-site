@@ -287,6 +287,7 @@ class Space(Obj):
         v = {k: x for k, x in self.doc.interp.sysvars.items() if k.startswith("DIM")}
         return Ent(self.doc, "DIMENSION", self, DIMKIND=kind, P1=list(p1), P2=list(p2), LOC=list(loc), ROTATION=float(rot),
                    STYLENAME=self.doc.interp.sysvars.get("DIMSTYLE", "Standard"), LINEARSCALEFACTOR=float(v.get("DIMLFAC", 1.0)),
+                   SCALEFACTOR=float(v.get("DIMSCALE", 1.0) or 1.0),      # overall scale of arrows and text (kept when a view is rescaled)
                    TEXTOVERRIDE="", LAYER=self.doc.clayer())
 
     def m_adddimrotated(self, p1, p2, loc, rot): return self._dim("rotated", p1, p2, loc, rot)
