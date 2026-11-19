@@ -175,8 +175,9 @@ def wall_lap(htot: float, cover: float, dia: float, lap50: float, lap100: float)
 # ------------------------------------------------------------------ schedule
 MEMBER = {"01": "Top slab top face + outer walls (U-bar)", "02": "Base slab bottom face + outer walls (U-bar)", "03": "Top slab bottom face",
           "04": "Base slab top face", "05": "Outer wall inner face", "06": "Pier wall, each face", "07": "Haunch bar", "08": "Distribution, along the barrel",
-          "09": "Skew end zone, parallel to the end face", "21": "Outer wall starter", "11": "Outer wall, outer face (straight, lapped top and bottom)",
-          "12": "Toe edge U-cap"}
+          "09": "Skew end zone, parallel to the end face", "21": "Outer wall starter", "11": "Outer wall, outer face (straight, lapped top and bottom)", "12": "Toe edge U-cap",
+          "W1": "Wing wall vertical, earth face", "W2": "Wing wall horizontal, both faces", "A1": "Apron transverse, top and bottom",
+          "A2": "Apron longitudinal", "C1": "Cut-off U-bars"}
 SPACING = {"01": "OUT_S", "02": "OUT_S", "21": "OUT_S", "03": "TOPIN_S", "04": "BOTIN_S", "05": "WALLIN_S", "06": "PIER_S", "07": "HCH_S", "11": "OUT_S", "12": "OUT_S"}
 
 
@@ -269,3 +270,42 @@ def multiples(R, htot: float) -> dict:
     if not wl["staggered"]: lm = max(lm, math.ceil(wl["lap"] / d1))
     wl["lap"] = lm * d1 if not wl["staggered"] else wl["lap"]
     return dict(anch_mult=am, lap_mult=lm, wall=wl, d1=d1)
+
+
+def _legs_to_pts(legs):
+    """Orthogonal bar from successive leg lengths, turning 90 deg each bend (U / L shapes)."""
+    pts = [(0.0, 0.0)]; dirs = [(1, 0), (0, 1), (-1, 0), (0, -1)]
+    for i, L in enumerate(legs):
+        dx, dy = dirs[i % 4]; x, y = pts[-1]; pts.append((x + dx * L, y + dy * L))
+    return pts
+
+
+def secondary_schedule(sec, geom: dict, stock: float = STOCK) -> list:
+    """Schedule rows for the wing walls, aprons and cut-off walls from retaining.Secondary.
+    geom: W_APRON, SPLAY_OUT, SPLAY_IN, L_WW_OUT, L_WW_IN, APRON_OUT_L, APRON_IN_L, H_TOT, CUTOFF_D, N wing walls (4)."""
+    rows = []
+    def rowset(mark, member, dia, sp, run_mm, count, bent_legs=None, note=""):
+        """One bar run cut to stock with laps, counted `count` times."""
+        l0 = 40 * dia; agg = {}
+        for L in _cut(run_mm, l0, stock): agg[L] = agg.get(L, 0) + 1
+        for i, (L, k) in enumerate(sorted(agg.items(), reverse=True)):
+            legs = bent_legs or [L]; pts = _legs_to_pts(legs) if bent_legs else None
+            rows.append(dict(mark=f"{mark}.{i+1}" if len(agg) > 1 else mark, base=mark, member=member, dia=dia, spacing=sp, no=count * k,
+                             shape=shape_code(pts) if pts else "00", legs=[int(x) for x in legs], length=L, mass=L / 1000.0 * mass_per_m(dia) * count * k,
+                             box=enclosing(pts) if pts else (L, 0.0), lap=None, group="WING WALLS" if mark[0] == "W" else "APRONS" if mark[0] == "A" else "CUT-OFF WALLS", note=note))
+    w = sec.wing; a = sec.apron; c = sec.cutoff; H = geom["H_TOT"]
+    # wing walls: 4 walls; vertical bars up the stem (both faces ~ earth face governs), horizontal bars along each wall
+    nwall = 4; wh = H + 300.0                          # stem height + starter
+    n_vert = int((geom["L_WW_OUT"] + geom["L_WW_IN"]) / 2.0 / w.face["spacing"]) + 1
+    rowset("W1", MEMBER["W1"], w.face["dia"], w.face["spacing"], wh, nwall * n_vert * 2, bent_legs=[int(H), int(w.geometry["base_width"] * 1000)])
+    n_horiz = int(wh / w.secondary["spacing"]) + 1
+    rowset("W2", MEMBER["W2"], w.secondary["dia"], w.secondary["spacing"], (geom["L_WW_OUT"] + geom["L_WW_IN"]) / 2.0, nwall * n_horiz * 2)
+    # aprons: transverse (across the apron) top and bottom, longitudinal both ways, 2 aprons
+    wap = geom["W_APRON"]; n_apr_t = int((geom["APRON_OUT_L"] + geom["APRON_IN_L"]) / a.face["spacing"]) + 2
+    rowset("A1", MEMBER["A1"], a.face["dia"], a.face["spacing"], wap, n_apr_t * 2)
+    n_apr_l = int(wap / a.secondary["spacing"]) + 1
+    rowset("A2", MEMBER["A2"], a.secondary["dia"], a.secondary["spacing"], (geom["APRON_OUT_L"] + geom["APRON_IN_L"]) / 2.0 + 500.0, n_apr_l * 2 * 2)
+    # cut-off U-bars at both apron ends
+    n_cut = int(geom.get("W_APRON_END_OUT", wap) / c.face["spacing"]) + 1
+    rowset("C1", MEMBER["C1"], c.face["dia"], c.face["spacing"], c.geometry["depth"] * 2000.0 + wap * 0, n_cut * 2, bent_legs=[int(c.geometry["depth"] * 1000), 300, int(c.geometry["depth"] * 1000)])
+    return rows

@@ -52,6 +52,33 @@ The drawing sheets need the generator files in a `generator` folder next to `app
   axis to the apron end: length = A / (cos b -/+ sin b cot S), so the two walls of one end differ.
   `python tests/skew_simulation.py out.png` draws the plan at eight skews and tabulates the wall lengths.
 
+## Secondary elements (wing walls, aprons, cut-off walls)
+
+`detailing/retaining.py` designs each secondary element to EN 1992-1-1 and EN 1997-1: the wing wall as a cantilever
+retaining wall (stem flexure and crack width; base auto-sized for overturning, sliding, bearing and the middle-third
+rule), the apron as a ground slab (nominal mesh, flotation check), and the cut-off wall (U-bars, scour depth). Their
+reinforcement is scheduled (`bars.secondary_schedule`) and their checks appear in the Code checks tab.
+
+## Drawings from the app's own design
+
+`export_writer.py` writes a complete `CBC_EXPORT.txt` (100+ parameters and the bar schedule) from the app's analysis,
+design and schedule, so the AutoCAD sheet set is produced for the structure designed in the app, with no workbook.
+Derived geometry and levels were checked against the reference export to the millimetre (`tests/test_export.py`).
+The Drawings tab uses this automatically when no workbook export is loaded; add inverts and the road level under
+"Levels and secondary geometry".
+
+## Licensing and protection
+
+The app requires a signed licence (`licence.cbclic`); without one it runs in evaluation mode (analysis and design
+work, drawing export is disabled). Licences are Ed25519-signed by the vendor; the app carries only the public key and
+verifies with a dependency-free verifier. A signed `manifest.cbcsig` lets the app detect tampering at start-up.
+Issue licences and sign builds with `tools/licence_admin.py`. **Read `PROTECTION.md`** for the workflow and the honest
+limits, and `LICENSE_AGREEMENT.md` for the end-user licence (a template to have a lawyer complete).
+
+    python tools/licence_admin.py keypair                        # once: make your signing keys
+    python tools/licence_admin.py issue PRIV "Customer" 183      # a half-year licence -> licence.cbclic
+    python tools/licence_admin.py sign-manifest PRIV > manifest.cbcsig
+
 ## Verification
 
     python -m pytest tests                     # closed-form frames, workbook comparison, detailing rules, GUI, drawing runtime

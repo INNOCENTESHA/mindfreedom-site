@@ -16,9 +16,13 @@ from PySide6 import QtCore, QtGui, QtWidgets as W
 from engine import Box, P
 from design import design_flexure, check_shear, bar_area
 import section_bb, math
-from detailing import design as ddesign, checks as dchecks, soil as dsoil, skew as dskew, ec2, bars as dbars
+from detailing import design as ddesign, checks as dchecks, soil as dsoil, skew as dskew, ec2, bars as dbars, retaining as dret
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavBar
 import ui_shell as ui, time
+try:
+    import licensing
+except Exception:
+    licensing=None
 
 BLUE="#1b3a5c"; ACC="#2d7dd2"; OK="#1e8449"; BAD="#c0392b"; LIGHT="#f4f6f9"; CARD="#ffffff"; RED="#c0392b"
 
@@ -62,6 +66,19 @@ class Main(W.QMainWindow):
         sb=self.statusBar(); self.lb_xy=W.QLabel("X    -      Z    -   m"); self.lb_xy.setMinimumWidth(210); self.lb_size=W.QLabel(""); lu=W.QLabel("  kN, m  ")
         for wdg in (self.lb_size,self.lb_xy,lu): wdg.setStyleSheet("border-left:1px solid #c3c9d1;padding:0 8px;"); sb.addPermanentWidget(wdg)
         self.msg("CBC Designer started.  F5 = Perform Analysis and Design.","head")
+        self.licence=None; self.licensed=False
+        if licensing is not None:
+            try:
+                self.licence=licensing.check(); self.licensed=True
+                self.msg(f"Licensed to {self.licence.get('licensee','')} - {licensing.days_left(self.licence):.0f} days remaining.","ok")
+            except Exception as ex:
+                self.msg(f"UNLICENSED ({ex}). Analysis and design run for evaluation; drawing export is disabled and outputs are watermarked.","warn")
+            try:
+                man=os.path.join(os.path.dirname(os.path.abspath(__file__)),"manifest.cbcsig")
+                if os.path.exists(man):
+                    bad=licensing.verify_manifest(os.path.dirname(os.path.abspath(__file__)),open(man,encoding="utf-8").read())
+                    if bad: self.msg(f"INTEGRITY WARNING: {len(bad)} program file(s) differ from the signed build ({bad[0]}).","bad")
+            except Exception as ex: self.msg(f"integrity check skipped: {ex}","warn")
         sb.showMessage("Ready"); self._apply_export(); self.run()
         for k,wdg in vars(self).items():                    # parameters edited after an analysis: results are out of date until F5
             if k.startswith("i_"): (wdg.currentTextChanged if isinstance(wdg,W.QComboBox) else wdg.valueChanged).connect(self._stale)
@@ -170,7 +187,14 @@ class Main(W.QMainWindow):
             ("Barrel length (m)",self.i_barrel),("Apron length (m)",self.i_apron),("Max joint spacing (m)",self.i_joint),
             ("Exposure class",self.i_expo),("Crack width limit (mm)",self.i_wk)]:
             sl.addRow(lab,wdg)
-        v.addWidget(st); v.addStretch(1)
+        v.addWidget(st)
+        lv=self._card("Levels and secondary geometry (drawings)"); lvl=W.QFormLayout(lv); lvl.setLabelAlignment(QtCore.Qt.AlignRight)
+        self.i_inv_out=spin(100.000,-50.0,500.0,0.05,3); self.i_inv_in=spin(100.158,-50.0,500.0,0.05,3); self.i_road_fgl=spin(103.000,-50.0,600.0,0.05,3)
+        self.i_haunch=spin(150,0,600,25); self.i_cutoff=spin(600,0,3000,50); self.i_wwtop=spin(300,150,800,25); self.i_wwbase=spin(400,200,1200,25); self.i_wwend=spin(600,0,3000,50)
+        for lab,wdg in [("Invert, outlet end (m)",self.i_inv_out),("Invert, inlet end (m)",self.i_inv_in),("Road formation level (m)",self.i_road_fgl),
+            ("Haunch (mm)",self.i_haunch),("Cut-off depth (mm)",self.i_cutoff),("Wing wall top t (mm)",self.i_wwtop),("Wing wall base t (mm)",self.i_wwbase),("Wing wall end height (mm)",self.i_wwend)]:
+            lvl.addRow(lab,wdg)
+        v.addWidget(lv); v.addStretch(1)
         sc=W.QScrollArea(); sc.setWidget(panel); sc.setWidgetResizable(True); sc.setFrameShape(W.QFrame.NoFrame); self.param_scroll=sc
         return sc
 
@@ -301,6 +325,17 @@ class Main(W.QMainWindow):
         # reinforcement section and bar schedule: no piece longer than the stock length, long runs lapped in two staggered families
         self.bb=section_bb.build(self.detail_params(p))
         self.sched=dbars.schedule(self.bb,section_bb.complete(self.detail_params(p)),self.i_barrel.value()*1000.0,self.i_skew.value())
+        # secondary elements: wing walls, aprons, cut-off walls (EN 1992 + EN 1997)
+        wd=self.i_water.value() if self.use_ground.isChecked() else None
+        self.secondary=dret.design(ec2.Concrete(p.fck),p.fyk,barrel_height=p.height,t_top=p.t_top,t_base=p.t_base,
+            wall_top=self.i_wwtop.value()/1000.0,wall_base=self.i_wwbase.value()/1000.0,end_height=self.i_wwend.value()/1000.0,cover=p.cover,
+            apron_width=(p.W_ext+2*self.i_wwbase.value()/1000.0),apron_length=self.i_apron.value(),apron_t=0.25,
+            cutoff_depth=self.i_cutoff.value()/1000.0,cutoff_t=0.25,gamma_soil=p.gamma_soil,K0=p.K0,surcharge=p.surcharge,
+            bearing_allow=210.0,water_depth=(wd if wd and wd>0 else None),scour_depth=0.6,exposure=self.i_expo.currentText(),wk_lim=self.i_wk.value())
+        import math as _m; _fl=_m.radians(self.i_skew.value()*0+self.i_flare.value()); _apr=self.i_apron.value()*1000.0; _wap=p.W_ext*1000.0+2*self.i_wwbase.value()
+        _geom=dict(W_APRON=_wap,L_WW_OUT=_apr/max(_m.cos(_fl),1e-6),L_WW_IN=_apr/max(_m.cos(_fl),1e-6),APRON_OUT_L=_apr,APRON_IN_L=_apr,
+            H_TOT=(p.height+p.t_top+p.t_base)*1000.0,CUTOFF_D=self.i_cutoff.value(),W_APRON_END_OUT=_wap+2*_apr*_m.tan(_fl))
+        self.sched=self.sched+dbars.secondary_schedule(self.secondary,_geom)
         class FD: pass
         rows=[]; self.design={}
         for m in ['top','base','walls','piers']:
@@ -321,7 +356,7 @@ class Main(W.QMainWindow):
         rows.append(("Bearing","Founding, SLS",f"{self.bearing_sls:,.1f} kPa",f"≤ {allow:.0f} kPa","site investigation",self.bearing_sls/allow,self.bearing_sls<=allow))
         self.maxutil,self.govern=R.max_util()
         self._fill_checks(rows)
-        self.checks=dchecks.run(self.box,R,self.site(),p.profile)
+        self.checks=dchecks.run(self.box,R,self.site(),p.profile)+self.secondary.rows()
         nbad=sum(1 for r in self.checks if not r["ok"])
         self._fill_code_checks()
         ok=all(r[6] for r in rows) and nbad==0
@@ -338,6 +373,8 @@ class Main(W.QMainWindow):
             if not ck["ok"]: A(f"NOT SATISFIED  {ck['group']} {ck['clause']} — {ck['item']}: {ck['value']} (limit {ck['limit']})","bad")
         A(f"SOLUTION TERMINATED  —  total time {time.time()-t0:.2f} s","ok" if ok else "warn")
         self.msg(f"Analysis and design completed: DESIGN {status}, max utilisation {self.maxutil:.2f}, {len(self.checks)-nbad}/{len(self.checks)} code checks.","ok" if ok else "warn")
+        self.drawset=None; self.sheet_cache={}                 # drawings follow the current design
+        if hasattr(self,"cb_sheet"): self.cb_sheet.blockSignals(True); self.cb_sheet.clear(); self.cb_sheet.blockSignals(False)
         self._fresh_results=True; self.lb_size.setText(f"{nn} nodes · {ne} elements · {len(self.box.u)} load cases")
         self.statusBar().showMessage(f"{p.n_cells}-cell {p.span:.2f}×{p.height:.2f} m · governing {self.govern}")
 
@@ -706,6 +743,8 @@ class Main(W.QMainWindow):
         self.report.setHtml(html)
 
     def export_dxf(self, path=None):
+        if not getattr(self,'licensed',False):
+            self.msg('Drawing export is disabled in evaluation mode. Install a licence (licence.cbclic) to export.','bad'); return
         if not path:
             path,_=W.QFileDialog.getSaveFileName(self,"Export reinforcement drawing","SECTION_B-B_BARREL_REINFORCEMENT.dxf","AutoCAD DXF (*.dxf)")
         if not path: return
@@ -718,12 +757,16 @@ def _open_drawings(self):
     if self.drawset is not None: return
     if not self.gen_dir:
         self.sheet_view.setText("Drawing generator not found.\nPut CBC01_Drawing_Generator.lsp and its extension files in a 'generator' folder next to the app,\nor set CBC_GENERATOR_DIR."); return
-    if not self.export_path:
-        self.sheet_view.setText("No parameter export loaded.\nStart the app with  --export CBC_EXPORT.txt  to produce the drawings for that structure."); return
+    path=self.export_path
+    if not path:                                         # no workbook export: write one from the app's own design
+        import export_writer, tempfile
+        keys,bbs=export_writer.from_app(self)
+        path=os.path.join(tempfile.gettempdir(),f"cbc_export_{os.getpid()}.txt"); export_writer.write_export(path,keys,bbs)
+        self.own_export=path; self.msg(f"Drawing set generated from the app's own design ({len(keys)} parameters, {len(bbs)} bar marks).","ok")
     self.statusBar().showMessage("Running the drawing generator…"); pdui()
     from cbcdraw.run import generate
     from cbcdraw import render
-    rec,I,log,status=generate(self.export_path,self.gen_dir,[os.path.join(self.gen_dir,"LOGO_FLAT")])
+    rec,I,log,status=generate(path,self.gen_dir,[os.path.join(self.gen_dir,"LOGO_FLAT")])
     if status!="ok":
         self.sheet_view.setText("The generator stopped:\n"+"\n".join(log[-6:])); return
     self.drawset=dict(rec=rec,log=log,doc=None,names=render.sheet_names(rec))
@@ -748,6 +791,8 @@ def _show_sheet(self,name):
     self.statusBar().showMessage(f"Sheet {name} - produced by the drawing generator, no AutoCAD involved")
 
 def _export_set_dxf(self,path=None):
+    if not getattr(self,'licensed',False):
+        self.msg('Drawing export is disabled in evaluation mode. Install a licence to export.','bad'); return
     self.open_drawings()
     if self.drawset is None: return
     if not path: path,_=W.QFileDialog.getSaveFileName(self,"Export the drawing set","DETAILED_DRAWINGS.dxf","AutoCAD DXF (*.dxf)")
@@ -757,6 +802,8 @@ def _export_set_dxf(self,path=None):
     self.statusBar().showMessage(f"DXF written: {path}  (model space + {len(self.drawset['names'])} layouts)")
 
 def _export_set_pdf(self,path=None):
+    if not getattr(self,'licensed',False):
+        self.msg('Drawing export is disabled in evaluation mode. Install a licence to export.','bad'); return
     self.open_drawings()
     if self.drawset is None: return
     if not path: path,_=W.QFileDialog.getSaveFileName(self,"Export the drawing set","DETAILED_DRAWINGS.pdf","PDF (*.pdf)")

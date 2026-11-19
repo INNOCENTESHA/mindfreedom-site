@@ -8,3 +8,9 @@ outputs/*.png
 outputs/*.pdf
 outputs/sheets/
 outputs/CBC01_*
+
+# Licensing secrets — NEVER commit these
+cbc_private_key*
+*private_key*
+licence.cbclic
+*.cbclic
