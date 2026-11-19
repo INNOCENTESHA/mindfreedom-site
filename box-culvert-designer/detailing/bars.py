@@ -80,11 +80,12 @@ def enclosing(pts) -> tuple:
 def zones(P: dict, layer: str) -> list:
     """Stations x (across the section, 0 = centre line) where a transverse slab bar may be lapped, with the half-width
     available.  The rule is by position, for both slabs:
-      * top reinforcement is never lapped at or near a support: its laps go at mid-span of the cells;
-      * bottom reinforcement is never lapped at or near mid-span: its laps go over the piers."""
+      * top reinforcement is never lapped at or near a support: the whole lap lies in the middle 60 % of a cell;
+      * bottom reinforcement is never lapped at or near mid-span: the whole lap lies over a pier, clear of the
+        middle 40 % of the cells either side."""
     nc = int(round(P["N_CELLS"])); sw, ti, wc = P["SPAN_W"], P["T_INWALL"], P["W_CLEAR"]; out = []
     if layer == "top":
-        for j in range(nc): out.append((-wc / 2.0 + j * (sw + ti) + sw / 2.0, 0.25 * sw))            # clear of the quarter span next to each support
+        for j in range(nc): out.append((-wc / 2.0 + j * (sw + ti) + sw / 2.0, 0.30 * sw))            # clear of the fifth of the span next to each support
     else:
         for j in range(1, nc): out.append((-wc / 2.0 + j * sw + (j - 1) * ti + ti / 2.0, ti / 2.0 + 0.30 * sw))   # clear of the middle 40 % of each span
     return out
@@ -102,9 +103,10 @@ def split(pts, l0: float, stock: float = STOCK, prefer=None, min_piece: float = 
     run = plen(pts)
     if run <= stock + 0.5: return None
     stag = 1.3 * l0; min_piece = max(min_piece, 2.0 * l0)
-    cands = []
+    cands = []; tight = []                                        # tight: the lap is longer than the permitted zone it sits in
     for c, hw in (prefer or []):
         room = max(0.0, hw - l0 / 2.0)
+        if hw < l0 / 2.0 - 1e-6: tight.append(c)
         for k in (0.0, -room, room):
             x = c + k
             if l0 / 2.0 < x < run - l0 / 2.0 and all(abs(x - y) > 1.0 for y in cands): cands.append(x)
@@ -149,6 +151,7 @@ def split(pts, l0: float, stock: float = STOCK, prefer=None, min_piece: float = 
         for c in cs: out.append((s, c + l0 / 2.0)); s = c - l0 / 2.0
         out.append((s, run)); return out
     d, a, b = pair; pa, pb = pieces(a), pieces(b)
+    if any(abs(x - t) < 1.0 for x in a + b for t in tight): preferred = False    # centred in its zone but reaching beyond it
     ok = d >= stag - 1e-6 and all(e - s <= stock + 1e-6 for s, e in pa + pb)
     return dict(A=list(a), B=list(b), pieces_A=pa, pieces_B=pb, stagger=d, preferred=preferred, ok=ok, l0=l0, run=run)
 
@@ -252,7 +255,7 @@ def limits(rows: list, fyk: float, stock: float = STOCK) -> list:
                 top = LAYER[r["base"]] == "top"
                 out.append((f"Mark {r['base']}: position of the laps ({'top' if top else 'bottom'} bar)", "at mid-span of the cells" if top else "over the piers",
                             "top bars not lapped at or near a support" if top else "bottom bars not lapped at or near mid-span", bool(lp.get("preferred", True)),
-                            "" if lp.get("preferred", True) else "no permitted position within the stock length: change the cell width or the bar arrangement"))
+                            "" if lp.get("preferred", True) else "the lap does not fit inside the permitted position: use smaller bars at closer spacing, or wider cells"))
     return out
 
 

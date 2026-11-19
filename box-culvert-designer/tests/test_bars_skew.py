@@ -36,8 +36,9 @@ def test_no_piece_longer_than_stock_and_laps_staggered(nc, sw, toe):
     for lp in D.laps:
         x0, x1 = lp["at"][0] - lp["l0"] / 2, lp["at"][0] + lp["l0"] / 2
         if bars.LAYER[lp["mark"]] == "top":                                   # whole lap inside the middle of a cell, clear of every support
-            assert any(abs(lp["at"][0] - m) <= 0.25 * sw - lp["l0"] / 2 + 1e-6 for m in mids), lp
-            assert all(min(abs(x0 - s), abs(x1 - s)) >= 0.25 * sw - P["T_WALL"] / 2 - 1e-6 for s in sups), lp
+            assert any(abs(lp["at"][0] - m) <= 0.30 * sw - lp["l0"] / 2 + 1e-6 for m in mids), lp
+            faces = [q + sg * ti / 2 for q in piers for sg in (-1, 1)] + [-wc / 2, wc / 2]
+            assert all(min(abs(x0 - f), abs(x1 - f)) >= 0.20 * sw - 1e-6 for f in faces), lp     # a fifth of the span clear of every support face
         else:                                                                 # whole lap at a pier, clear of every mid-span
             assert any(abs(lp["at"][0] - q) <= ti / 2 + 0.30 * sw - lp["l0"] / 2 + 1e-6 for q in piers), lp
             assert all(min(abs(x0 - m), abs(x1 - m)) >= 0.20 * sw - 1e-6 for m in mids), lp

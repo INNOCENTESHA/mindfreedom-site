@@ -196,7 +196,7 @@ def build(P_in: dict) -> Drawing:
             if alt: D.pieces.append(dict(mark=mark, fam="B", idx=1, pts=mirror(pts), dia=d, split=False, alt=True, lap=None))
             return
         if not sp["ok"]: D.warnings.append(f"bar {mark}: alternate bars lap at one section (no room to stagger in the permitted position) - use the 100 % lap length")
-        if not sp["preferred"]: D.warnings.append(f"bar {mark}: no permitted lap position ({face} bar) within the stock length")
+        if not sp["preferred"]: D.warnings.append(f"bar {mark}: the lap does not fit inside the permitted position of a {face} bar - use smaller bars or wider cells")
         info = dict(l0=sp["l0"], stagger=sp["stagger"], preferred=sp["preferred"], ok=sp["ok"])
         for fam in "AB":
             for i, (s0, s1) in enumerate(sp["pieces_" + fam]):
