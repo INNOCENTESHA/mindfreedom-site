@@ -58,7 +58,7 @@ def test_export_keys_and_schedule():
         assert key in k
     geom = dict(W_APRON=8050, L_WW_OUT=5485, L_WW_IN=5485, APRON_OUT_L=4750, APRON_IN_L=4750, H_TOT=2500, CUTOFF_D=800, W_APRON_END_OUT=13534)
     rows = bars.secondary_schedule(S, geom)
-    assert {r["base"] for r in rows} == {"W1", "W2", "A1", "A2", "C1"}
+    assert {r["base"] for r in rows} == {"09", "10", "12", "13", "14"}
     for r in rows:
         assert r["length"] <= 12000 + 1e-6 and r["no"] > 0 and r["mass"] > 0
         assert int(r["dia"]) in bars.SIZES

@@ -1,7 +1,7 @@
 {
  "files": {
   "CBC_Designer.bat": "0ead897aa017a65a5dca430662354225fc8af5262ed69449d7882c33a1d391d6",
-  "app.py": "2297c2d955fb62df8780cc372981e9e1ee2ed26464f6418514cff629c7ef2ee2",
+  "app.py": "b95faa29495c681671df4986010e4e59609a10345c939466d7c64cfbe41b183e",
   "build_exe.bat": "8c0bbb411543d298f78548bdebde53afbbb0ebfb18eff9f482e396a5ad681bf2",
   "culvert.py": "2ba4842518f256680bfa7de5e027d7d49f1ed74395ae656520c9c7847d18fca8",
   "design.py": "d84e129d108730ddc37f8f3d4dc5424a328fcc18ce70c82251286cae1212eb10",
@@ -11,10 +11,10 @@
   "frame.py": "fa8ebe78382205a0d0dc8407d0569ecb729a0b0c27c92a7219ece53807f672f8",
   "licensing.py": "fc17bca107ea21c0a6d2d3759291082aa456ceb02fc9b0e2b0f6ac9fce3e8dde",
   "run.py": "c66ea0a485364c88f3d7fbbb8de7ab53087ec661216f046008c48a5e698a3358",
-  "section_bb.py": "5ec2d635fe6bad24f3e6f0fe8d6655ceff04aa1093cdb9aa06b582c7c8328719",
+  "section_bb.py": "f727263c531945689b72b8d9fe6c6220ea3c7fff3ccbafdd2c47e8f812aeba6d",
   "ui_shell.py": "8c3d102f055e558ab337d9c0ad8d6c76dab637a77d247d70496937c5b44edbe6",
   "detailing/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-  "detailing/bars.py": "efb921601246799974d27354d1b02fd5ff4e60b7b81e8a2fe1bd9d8c73af13b9",
+  "detailing/bars.py": "ef09cec71a2f12e898c6b9ca6bcf281e9c6003f499595f66e3f3649380646a7a",
   "detailing/checks.py": "327d308a4ccbd81683e0ebddb0afb8cb6fbfa029c8632ac018833df28ec45611",
   "detailing/design.py": "9cdcf36034da7b956f347cdd6ff1102a5b25671d99a2f5da95beb3ee3138952e",
   "detailing/ec2.py": "8818a03bb6ba08028c66099cd3c24e8f813e5695fb2434c00d931b0f20f9b2ac",
@@ -34,6 +34,6 @@
   "cbcdraw/verify.py": "b61b7e323a8e1ba25a27f1937a18729ed51c59f865b9de50246b50f8ce14de7b",
   "tools/licence_admin.py": "87c1b04184d714bee4dcd56e3c439c7bf1d7eb67b946c8d6da3837b4d42dcd6b"
  },
- "built": 1795083520.2077603,
- "signature": "jP1EFYmRBugjSxU/daFroy06FqQ8OkcBBtG6Nnn28h0DxpC7jCWLHx52fzjMjS94uOwDUiQp+zyuuzkjTaAGBQ=="
+ "built": 1795084504.0046132,
+ "signature": "wZUlnxWmzcj2nMJw5lLlCwJLOhnoRi56viV85By92jv37ZVq/e+KpVMXM4VI7Bix34YSXPvznOKv2LTdC/zyDg=="
 }

@@ -59,7 +59,7 @@ DEFAULTS = dict(
     HAUNCH=150, CHAMFER=20, BLINDING_T=75, COVER=50, LAP_MULT=50, ANCH_MULT=40,
     OUT_D=16, OUT_S=150, TOPIN_D=16, TOPIN_S=200, BOTIN_D=16, BOTIN_S=200,
     WALLIN_D=12, WALLIN_S=200, PIER_D=12, PIER_S=200, DIST_D=12, DIST_S=200,
-    HCH_D=12, HCH_S=200, SC_RC=20, BAR_STOCK=12000,
+    HCH_D=12, HCH_S=200, SC_RC=20, BAR_STOCK=12000, FYK=460,
     TOE=0,                      # base slab projection beyond the outer wall faces (same toe as the wing walls)
     FREE_EDGE_LEG=0,            # U-cap leg at the toe edge; 0 = max(2 x base thickness (EN 1992-1-1 9.3.1.4), anchorage)
 )
@@ -174,7 +174,8 @@ def build(P_in: dict) -> Drawing:
     BD = lambda k: P[k + "_D"]
     BS = lambda k: P[k + "_S"]
     # (MK m k) with the RC_Extension3 override: lapped bars that alternate read 01/01a, 02/02a
-    MK = lambda m, k: (f"{m}/{m}a" if m in ("01", "02", "13") else m) + f"-T{num(BD(k))}-{num(BS(k))}"
+    PFX = bars.bar_prefix(P.get("FYK", 460))
+    MK = lambda m, k: (f"{m}/{m}a" if m in ("01", "02", "13") else m) + f"-{PFX}{num(BD(k))}-{num(BS(k))}"
     D = Drawing(sc=P["SC_RC"])
 
     def bar(pts, mark, dia=None, face=None, inward=(0.0, 0.0), alt=False):
@@ -266,8 +267,8 @@ def build(P_in: dict) -> Drawing:
             if not fits: D.warnings.append(f"toe edge: the base slab is too thin for a U-cap of any bar size")
             lc = min(max(P["LAP_MULT"] * dc, 2.0 * tb), A - cv - 100.0); xc = A - cv - dc / 2.0; yt = -cv - dc / 2.0; yb = -tb + co + d1 / 2.0 + dc / 2.0
             for sg in (-1, 1):
-                bar([(sg * (xc - lc), yt), (sg * xc, yt), (sg * xc, yb), (sg * (xc - lc), yb)], "12", dc)
-            D.leaders.append(((A - cv - lc * 0.5, yt), (a * 0.9, -(tb + 380)), f"12-T{num(dc)}-{num(BS('OUT'))} U-CAP", "CBC_RTXT"))
+                bar([(sg * (xc - lc), yt), (sg * xc, yt), (sg * xc, yb), (sg * (xc - lc), yb)], "17", dc)
+            D.leaders.append(((A - cv - lc * 0.5, yt), (a * 0.9, -(tb + 380)), f"17-{PFX}{num(dc)}-{num(BS('OUT'))} U-CAP", "CBC_RTXT"))
             P["CAP_S"] = BS("OUT")
         y0 = -tb + co + d1
         for sg, top in ((-1, -tb + co + bl_), (1, -tb + co + br)):
@@ -276,8 +277,8 @@ def build(P_in: dict) -> Drawing:
     if tall:
         for sg, top_leg, bot_leg in ((-1, tl, bl_), (1, tr, br)):
             x = sg * (a - co - d1)
-            bar([(x, -tb + co + bot_leg - lap), (x, hw - co - top_leg + lap)], "11", d1, alt=True)
-        D.leaders.append(((a - co - d1, hw * 0.5), (a * 0.82, shh * 0.5), f"11/11a-T{num(d1)}-{num(BS('OUT'))} WALL BAR, LAPPED TOP AND BOTTOM", "CBC_RTXT"))
+            bar([(x, -tb + co + bot_leg - lap), (x, hw - co - top_leg + lap)], "15", d1, alt=True)
+        D.leaders.append(((a - co - d1, hw * 0.5), (a * 0.82, shh * 0.5), f"15/15a-{PFX}{num(d1)}-{num(BS('OUT'))} WALL BAR, LAPPED TOP AND BOTTOM", "CBC_RTXT"))
     c3, c4, d5, dd = BD("TOPIN"), BD("BOTIN"), BD("WALLIN"), BD("DIST")
     # 03 top slab bottom face, legs bent down into the outer walls
     y = shh + cv + c3 / 2.0; u = leg(P, c3, tw)
@@ -329,9 +330,9 @@ def build(P_in: dict) -> Drawing:
     # labels
     L = D.leaders.append
     L(((0, hw - co), (a * 0.6, hw + 500), MK("01", "OUT"), "CBC_RTXT"))
-    L(((0, -tb + co), (a * 0.6, -(tb + 500)), (MK("02", "OUT") if toe <= 0 else f"02-T{num(d1)}-{num(BS('OUT'))} (CAPPED AT TOE EDGES)"), "CBC_RTXT"))
+    L(((0, -tb + co), (a * 0.6, -(tb + 500)), (MK("02", "OUT") if toe <= 0 else f"02-{PFX}{num(d1)}-{num(BS('OUT'))} (CAPPED AT TOE EDGES)"), "CBC_RTXT"))
     if toe > 0:
-        L(((a - co - d1 - P["ANCH_MULT"] * d1 * 0.5, -tb + co + d1), (a * 0.82, shh * 0.12), f"21-T{num(d1)}-{num(BS('OUT'))} STARTERS", "CBC_RTXT"))
+        L(((a - co - d1 - P["ANCH_MULT"] * d1 * 0.5, -tb + co + d1), (a * 0.82, shh * 0.12), f"21-{PFX}{num(d1)}-{num(BS('OUT'))} STARTERS", "CBC_RTXT"))
     L(((a * -0.3, shh + cv + c3 / 2.0), (a * -0.2, shh * 0.82), MK("03", "TOPIN"), "CBC_RTXT"))
     L(((a * -0.3, -(cv + c4 / 2.0)), (a * -0.2, shh * 0.18), MK("04", "BOTIN"), "CBC_RTXT"))
     L(((wc / 2.0 + cv + d5 / 2.0, shh * 0.55), (a * 0.25, shh * 0.63), MK("05", "WALLIN"), "CBC_RTXT"))
@@ -432,10 +433,10 @@ def to_dxf(D: Drawing, path: str, origin=(200.0, 150.0)):
 # --------------------------------------------------------------------------- matplotlib renderer
 # colours of the bar marks on screen (the DXF keeps every bar on the red rebar layer, as on the drawings)
 MARK_COLOURS = {"01": "#ff3b30", "02": "#ff9500", "03": "#ffd60a", "04": "#34c759", "05": "#00c7be", "06": "#32ade6",
-                "07": "#bf5af2", "08": "#ff2d92", "21": "#a2845e", "22": "#ffffff", "11": "#8fd14f", "12": "#f2a65a"}
+                "07": "#bf5af2", "08": "#ff2d92", "21": "#a2845e", "22": "#ffffff", "15": "#8fd14f", "17": "#f2a65a"}
 MARK_NAMES = {"01": "top U-bar", "02": "base bottom bar", "03": "top slab, inner face", "04": "base slab, inner face",
               "05": "outer wall, inner face", "06": "pier wall", "07": "haunch bar", "08": "distribution (dots)",
-              "21": "outer wall starter", "22": "shear link", "11": "outer wall bar (lapped)", "12": "toe edge U-cap"}
+              "21": "outer wall starter", "22": "shear link", "15": "outer wall bar (lapped)", "17": "toe edge U-cap"}
 
 
 def to_mpl(D: Drawing, ax, dark=True, window=None, annotate=True, by_mark=False, fill=True, min_bar_pt=0.9, legend=False, title=None):

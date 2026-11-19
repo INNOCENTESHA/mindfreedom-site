@@ -16,6 +16,12 @@ import math
 from . import ec2
 
 STOCK = 12000.0
+
+
+def bar_prefix(fyk: float) -> str:
+    """BS 8666 bar type letter by grade: R mild 250, T high-yield 460 (BS 4449:1997), H ribbed 500, G 600."""
+    f = round(float(fyk))
+    return {250: "R", 460: "T", 500: "H", 600: "G"}.get(f, "H" if f >= 500 else "T")
 SIZES = (8, 10, 12, 16, 20, 25, 32, 40)
 GRADES = {460: "grade 460 (BS 4449:1997)", 500: "B500 (BS 4449:2005 / EN 10080)"}
 TRANSPORT = 2750.0
@@ -175,10 +181,10 @@ def wall_lap(htot: float, cover: float, dia: float, lap50: float, lap100: float)
 # ------------------------------------------------------------------ schedule
 MEMBER = {"01": "Top slab top face + outer walls (U-bar)", "02": "Base slab bottom face + outer walls (U-bar)", "03": "Top slab bottom face",
           "04": "Base slab top face", "05": "Outer wall inner face", "06": "Pier wall, each face", "07": "Haunch bar", "08": "Distribution, along the barrel",
-          "09": "Skew end zone, parallel to the end face", "21": "Outer wall starter", "11": "Outer wall, outer face (straight, lapped top and bottom)", "12": "Toe edge U-cap",
-          "W1": "Wing wall vertical, earth face", "W2": "Wing wall horizontal, both faces", "A1": "Apron transverse, top and bottom",
-          "A2": "Apron longitudinal", "C1": "Cut-off U-bars"}
-SPACING = {"01": "OUT_S", "02": "OUT_S", "21": "OUT_S", "03": "TOPIN_S", "04": "BOTIN_S", "05": "WALLIN_S", "06": "PIER_S", "07": "HCH_S", "11": "OUT_S", "12": "OUT_S"}
+          "09": "Skew end zone, parallel to the end face", "21": "Outer wall starter", "15": "Outer wall, outer face (straight, lapped top and bottom)", "17": "Toe edge U-cap",
+          "12": "Wing wall vertical, earth face", "13": "Wing wall horizontal, both faces", "09": "Apron transverse, top and bottom",
+          "10": "Apron longitudinal", "14": "Cut-off U-bars"}
+SPACING = {"01": "OUT_S", "02": "OUT_S", "21": "OUT_S", "03": "TOPIN_S", "04": "BOTIN_S", "05": "WALLIN_S", "06": "PIER_S", "07": "HCH_S", "15": "OUT_S", "17": "OUT_S"}
 
 
 def schedule(D, P: dict, barrel_length: float, skew_deg: float = 90.0, dist_lap_mult: float | None = None, stock: float = STOCK) -> list:
@@ -292,20 +298,20 @@ def secondary_schedule(sec, geom: dict, stock: float = STOCK) -> list:
             legs = bent_legs or [L]; pts = _legs_to_pts(legs) if bent_legs else None
             rows.append(dict(mark=f"{mark}.{i+1}" if len(agg) > 1 else mark, base=mark, member=member, dia=dia, spacing=sp, no=count * k,
                              shape=shape_code(pts) if pts else "00", legs=[int(x) for x in legs], length=L, mass=L / 1000.0 * mass_per_m(dia) * count * k,
-                             box=enclosing(pts) if pts else (L, 0.0), lap=None, group="WING WALLS" if mark[0] == "W" else "APRONS" if mark[0] == "A" else "CUT-OFF WALLS", note=note))
+                             box=enclosing(pts) if pts else (L, 0.0), lap=None, group={"12":"WING WALLS","13":"WING WALLS","09":"APRONS","10":"APRONS","14":"CUT-OFF WALLS"}.get(mark,"BARREL"), note=note))
     w = sec.wing; a = sec.apron; c = sec.cutoff; H = geom["H_TOT"]
     # wing walls: 4 walls; vertical bars up the stem (both faces ~ earth face governs), horizontal bars along each wall
     nwall = 4; wh = H + 300.0                          # stem height + starter
     n_vert = int((geom["L_WW_OUT"] + geom["L_WW_IN"]) / 2.0 / w.face["spacing"]) + 1
-    rowset("W1", MEMBER["W1"], w.face["dia"], w.face["spacing"], wh, nwall * n_vert * 2, bent_legs=[int(H), int(w.geometry["base_width"] * 1000)])
+    rowset("12", MEMBER["12"], w.face["dia"], w.face["spacing"], wh, nwall * n_vert * 2, bent_legs=[int(H), int(w.geometry["base_width"] * 1000)])
     n_horiz = int(wh / w.secondary["spacing"]) + 1
-    rowset("W2", MEMBER["W2"], w.secondary["dia"], w.secondary["spacing"], (geom["L_WW_OUT"] + geom["L_WW_IN"]) / 2.0, nwall * n_horiz * 2)
+    rowset("13", MEMBER["13"], w.secondary["dia"], w.secondary["spacing"], (geom["L_WW_OUT"] + geom["L_WW_IN"]) / 2.0, nwall * n_horiz * 2)
     # aprons: transverse (across the apron) top and bottom, longitudinal both ways, 2 aprons
     wap = geom["W_APRON"]; n_apr_t = int((geom["APRON_OUT_L"] + geom["APRON_IN_L"]) / a.face["spacing"]) + 2
-    rowset("A1", MEMBER["A1"], a.face["dia"], a.face["spacing"], wap, n_apr_t * 2)
+    rowset("09", MEMBER["09"], a.face["dia"], a.face["spacing"], wap, n_apr_t * 2)
     n_apr_l = int(wap / a.secondary["spacing"]) + 1
-    rowset("A2", MEMBER["A2"], a.secondary["dia"], a.secondary["spacing"], (geom["APRON_OUT_L"] + geom["APRON_IN_L"]) / 2.0 + 500.0, n_apr_l * 2 * 2)
+    rowset("10", MEMBER["10"], a.secondary["dia"], a.secondary["spacing"], (geom["APRON_OUT_L"] + geom["APRON_IN_L"]) / 2.0 + 500.0, n_apr_l * 2 * 2)
     # cut-off U-bars at both apron ends
     n_cut = int(geom.get("W_APRON_END_OUT", wap) / c.face["spacing"]) + 1
-    rowset("C1", MEMBER["C1"], c.face["dia"], c.face["spacing"], c.geometry["depth"] * 2000.0 + wap * 0, n_cut * 2, bent_legs=[int(c.geometry["depth"] * 1000), 300, int(c.geometry["depth"] * 1000)])
+    rowset("14", MEMBER["14"], c.face["dia"], c.face["spacing"], c.geometry["depth"] * 2000.0 + wap * 0, n_cut * 2, bent_legs=[int(c.geometry["depth"] * 1000), 300, int(c.geometry["depth"] * 1000)])
     return rows

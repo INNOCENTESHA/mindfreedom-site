@@ -57,7 +57,12 @@ class Main(W.QMainWindow):
         self.messages=ui.Messages(); dm=W.QDockWidget("Message Window"); dm.setWidget(self.messages); dm.setObjectName("messages")
         self.addDockWidget(QtCore.Qt.BottomDockWidgetArea,dm); self.dock_msg=dm; self.messages.setMinimumHeight(70)
         # tree menu (left): works tree of the model, and the parameters
-        self.tree=W.QTreeWidget(); self.tree.setHeaderHidden(True); self.tree.itemClicked.connect(self._tree_clicked); self.tree_slots={}
+        self.tree=W.QTreeWidget(); self.tree.setHeaderHidden(True); self.tree.setColumnCount(1); self.tree_slots={}
+        self.tree.setIconSize(QtCore.QSize(18,18)); self.tree.setIndentation(14); self.tree.setAnimated(True); self.tree.setUniformRowHeights(True)
+        self.tree.setRootIsDecorated(True); self.tree.setExpandsOnDoubleClick(False); self.tree.setAlternatingRowColors(True)
+        self.tree.setSelectionBehavior(W.QAbstractItemView.SelectRows); self.tree.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.tree.itemClicked.connect(self._tree_clicked); self.tree.itemDoubleClicked.connect(self._tree_clicked)
+        self.tree.itemActivated.connect(self._tree_clicked); self.tree.customContextMenuRequested.connect(self._tree_menu)
         self.left=W.QTabWidget(); self.left.setTabPosition(W.QTabWidget.South)
         self.left.addTab(self._input_panel(),"Parameters"); self.left.addTab(self.tree,"Works")
         dl=W.QDockWidget("Tree Menu"); dl.setWidget(self.left); dl.setObjectName("tree"); dl.setMinimumWidth(330); self.addDockWidget(QtCore.Qt.LeftDockWidgetArea,dl); self.dock_tree=dl
@@ -103,6 +108,17 @@ class Main(W.QMainWindow):
     def focus_group(self,title,widget=None):
         self.left.setCurrentIndex(0); g=self.groups[title]; self.param_scroll.ensureWidgetVisible(g,0,10)
         if widget is not None: widget.setFocus(); widget.selectAll() if hasattr(widget,"selectAll") else None
+
+    def _tree_menu(self,pos):
+        it=self.tree.itemAt(pos)
+        if not it: return
+        m=W.QMenu(self)
+        if id(it) in self.tree_slots:
+            m.addAction(ui.icon("fit",16),"Open",lambda: self._tree_clicked(it))
+        if it.childCount():
+            m.addAction("Expand",it.setExpanded.__self__.expandAll if False else (lambda: self.tree.expandItem(it)))
+            m.addAction("Collapse",lambda: self.tree.collapseItem(it))
+        if not m.isEmpty(): m.exec(self.tree.viewport().mapToGlobal(pos))
 
     def _tree_clicked(self,item,_col=0):
         f=self.tree_slots.get(id(item))
@@ -381,41 +397,42 @@ class Main(W.QMainWindow):
     def _fill_tree(self,p):
         """Works tree: what the model holds, each entry opening its table, view or parameter."""
         t=self.tree; t.clear(); self.tree_slots={}; b=self.box; G=self.focus_group; R=self.show_result; T=self.show_table
-        def node(parent,text,slot=None,bold=False):
+        def node(parent,text,slot=None,bold=False,ic=None):
             it=W.QTreeWidgetItem(parent,[text])
             if bold: f=it.font(0); f.setBold(True); it.setFont(0,f)
-            if slot: self.tree_slots[id(it)]=slot
+            if ic: it.setIcon(0,ui.icon(ic,18))
+            if slot: self.tree_slots[id(it)]=slot; it.setToolTip(0,"Click to open")
             return it
-        w=node(t,"Works",bold=True)
-        s_=node(w,"Structure",bold=True)
-        node(s_,f"Box culvert : {p.n_cells} cell(s) {p.span*1000:.0f} × {p.height*1000:.0f}",lambda: G("Geometry",self.i_cells))
-        node(s_,f"Nodes : {len(b.fr.nodes)}",lambda: T("Nodes")); node(s_,f"Elements : {len(b.fr.elements)}",lambda: T("Elements"))
-        if p.toe>0: node(s_,f"Toe : {p.toe*1000:.0f} mm each side",lambda: G("Site and detailing",self.i_toe))
-        node(s_,f"Skew {self.i_skew.value():.0f}°, wing wall flare {self.i_flare.value():.0f}°",lambda: G("Site and detailing",self.i_skew))
-        pr=node(w,"Properties",bold=True)
-        m=node(pr,"Material : 1"); node(m,f"1 : C{p.fck:.0f}  (Ecm {p.Ecm:,.0f} MPa), steel fyk {p.fyk:.0f}",lambda: G("Materials",self.i_fck))
-        sec=node(pr,"Section : "+("4" if p.n_cells>1 else "3"))
+        w=node(t,"Works",bold=True,ic="box")
+        s_=node(w,"Structure",bold=True,ic="box")
+        node(s_,f"Box culvert : {p.n_cells} cell(s) {p.span*1000:.0f} × {p.height*1000:.0f}",lambda: G("Geometry",self.i_cells),ic="cells")
+        node(s_,f"Nodes : {len(b.fr.nodes)}",lambda: T("Nodes"),ic="nodes"); node(s_,f"Elements : {len(b.fr.elements)}",lambda: T("Elements"),ic="elems")
+        if p.toe>0: node(s_,f"Toe : {p.toe*1000:.0f} mm, both walls and wings",lambda: G("Site and detailing",self.i_toe),ic="toe")
+        node(s_,f"Skew {self.i_skew.value():.0f}°, wing wall flare {self.i_flare.value():.0f}°",lambda: G("Site and detailing",self.i_skew),ic="skew")
+        pr=node(w,"Properties",bold=True,ic="mat")
+        m=node(pr,"Material : 1",ic="mat"); node(m,f"1 : C{p.fck:.0f} / steel {dbars.bar_prefix(p.fyk)} fyk {p.fyk:.0f}  (Ecm {p.Ecm:,.0f} MPa)",lambda: G("Materials",self.i_fck),ic="mat")
+        sec=node(pr,"Section : "+("4" if p.n_cells>1 else "3"),ic="sect")
         for i,(nm,th) in enumerate([("Top slab",p.t_top),("Base slab",p.t_base),("Outer walls",p.t_wall)]+([("Piers",p.t_pier)] if p.n_cells>1 else [])):
-            node(sec,f"{i+1} : {nm}  1000 × {th*1000:.0f}",lambda: G("Geometry",self.i_ttop))
-        bd=node(w,"Boundaries",bold=True)
-        node(bd,f"Point spring supports : {len(b.base_nodes)}  (ks {b.ks:,.0f} kN/m³)",lambda: G("Loading — BS 5400",self.i_ks))
-        node(bd,"Ground profile : "+("layered" if p.profile is not None else "uniform"),lambda: self.goto("Ground · Plan"))
-        lc=node(w,f"Static Load Cases : {len(b.u)}",bold=True)
+            node(sec,f"{i+1} : {nm}  1000 × {th*1000:.0f}",lambda: G("Geometry",self.i_ttop),ic="sect")
+        bd=node(w,"Boundaries",bold=True,ic="spring")
+        node(bd,f"Point spring supports : {len(b.base_nodes)}  (ks {b.ks:,.0f} kN/m³)",lambda: G("Loading — BS 5400",self.i_ks),ic="spring")
+        node(bd,"Ground profile : "+("layered" if p.profile is not None else "uniform"),lambda: self.goto("Ground · Plan"),ic="soil")
+        lc=node(w,f"Static Load Cases : {len(b.u)}",bold=True,ic="load")
         def pick(key): return lambda: (self.mv.cb_lc.setCurrentText(ui.case_title(key)),R("Loads"))
-        for i,k in enumerate(ui.STATIC): node(lc,f"{i+1} : {ui.case_title(k)}",pick(k))
-        hb=node(lc,f"Moving load, HB {p.hb_units:g} units : {len(b.hb_keys)} positions",lambda: G("Loading — BS 5400",self.i_hb))
-        for k in b.hb_keys: node(hb,ui.case_title(k),pick(k))
-        cb=node(w,f"Load Combinations : {len(self.uls)+len(self.sls)}",lambda: T("Load combinations"),bold=True)
-        node(cb,f"ULS : {len(self.uls)}",lambda: T("Load combinations")); node(cb,f"SLS : {len(self.sls)}",lambda: T("Load combinations"))
-        rs=node(w,"Results",bold=True)
-        for nm,d in (("Reactions","Reactions"),("Deformed shape","Deformed shape"),("Bending moment diagram","Bending moment"),("Shear force diagram","Shear force"),("Axial force diagram","Axial force")): node(rs,nm,(lambda d=d: R(d)))
-        tb=node(rs,"Result tables")
-        for k in ("Displacements","Reactions","Beam forces"): node(tb,k,(lambda k=k: T(k)))
-        ds=node(w,"Design",bold=True)
-        node(ds,f"Member design : utilisation {self.maxutil:.2f}",lambda: self.goto("Design")); nb=sum(1 for c in self.checks if not c["ok"])
-        node(ds,f"Code checks : {len(self.checks)-nb} / {len(self.checks)}",lambda: self.goto("Code checks")); node(ds,"Report",lambda: self.goto("Report"))
-        dt=node(w,"Detailing and drawings",bold=True)
-        for nm in ("Detailing","Schedule (BBS)","Ground · Plan","Drawings"): node(dt,nm,(lambda nm=nm: self.goto(nm)))
+        for i,k in enumerate(ui.STATIC): node(lc,f"{i+1} : {ui.case_title(k)}",pick(k),ic="earth" if k in ("EH","LS","LS1") else "load")
+        hb=node(lc,f"Moving load, HB {p.hb_units:g} units : {len(b.hb_keys)} positions",lambda: G("Loading — BS 5400",self.i_hb),ic="truck")
+        for k in b.hb_keys: node(hb,ui.case_title(k),pick(k),ic="truck")
+        cb=node(w,f"Load Combinations : {len(self.uls)+len(self.sls)}",lambda: T("Load combinations"),bold=True,ic="combo")
+        node(cb,f"ULS : {len(self.uls)}",lambda: T("Load combinations"),ic="combo"); node(cb,f"SLS : {len(self.sls)}",lambda: T("Load combinations"),ic="combo")
+        rs=node(w,"Results",bold=True,ic="moment")
+        for nm,d,ic in (("Reactions","Reactions","react"),("Deformed shape","Deformed shape","deform"),("Bending moment diagram","Bending moment","moment"),("Shear force diagram","Shear force","shear"),("Axial force diagram","Axial force","axial")): node(rs,nm,(lambda d=d: R(d)),ic=ic)
+        tb=node(rs,"Result tables",ic="table")
+        for k in ("Displacements","Reactions","Beam forces"): node(tb,k,(lambda k=k: T(k)),ic="table")
+        ds=node(w,"Design",bold=True,ic="design")
+        node(ds,f"Member design : utilisation {self.maxutil:.2f}",lambda: self.goto("Design"),ic="design"); nb=sum(1 for c in self.checks if not c["ok"])
+        node(ds,f"Code checks : {len(self.checks)-nb} / {len(self.checks)}",lambda: self.goto("Code checks"),ic="check"); node(ds,"Report",lambda: self.goto("Report"),ic="report")
+        dt=node(w,"Detailing and drawings",bold=True,ic="rebar")
+        for nm,ic in (("Detailing","rebar"),("Schedule (BBS)","bbs"),("Ground · Plan","plan"),("Drawings","sheets")): node(dt,nm,(lambda nm=nm: self.goto(nm)),ic=ic)
         t.expandToDepth(1); hb.setExpanded(False)
 
     def _fill_code_checks(self):
