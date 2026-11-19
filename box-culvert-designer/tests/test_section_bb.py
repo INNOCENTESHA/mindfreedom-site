@@ -78,7 +78,7 @@ def test_against_reference_dwg():
         assert min(math.dist((x, y), r) for r in rd) <= 0.11
     key = lambda pts: sorted((round(x), round(y)) for x, y in pts)
     rc = [key(c) for c in ref["conc"]]
-    for pts, closed, layer, _ in D.pl:
+    for pts, closed, layer, *_ in D.pl:
         if layer == "CBC_CONC":
             assert key(pts) in rc
     assert len(D.leaders) == len(lab)

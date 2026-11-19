@@ -42,6 +42,9 @@ class P:
     gG_min: float = 1.0
     gQ: float = 1.35
     n_div: int = 10            # divisions per cell span
+    toe: float = 0.0           # projection of the base slab beyond the outer wall faces (m) - same toe as the wing walls
+    profile: object = None     # detailing.soil.Profile: layered ground (earth pressure, water, subgrade stiffness)
+    ks_from_profile: bool = True
 
     @property
     def W_ext(self):           # external width
@@ -86,14 +89,24 @@ class Box:
             if key not in self.nid: self.nid[key]=self.fr.add_node(x,z)
             return self.nid[key]
         # base & top chains
-        self.base_nodes=[N(x,0.0) for x in xst]
+        # the base slab runs on to the toes: from the wall centre line to the wall face (t/2) plus the toe
+        bx=list(xst); self.toe_len=0.0
+        if p.toe>1e-9:
+            self.toe_len=p.t_wall/2+p.toe; nt=max(2,int(round(self.toe_len/(xst[1]-xst[0]))))
+            left=[round(-self.toe_len+self.toe_len*k/nt,6) for k in range(nt)]
+            right=[round(W+self.toe_len*k/nt,6) for k in range(1,nt+1)]
+            bx=left+bx+right
+        self.bx=bx
+        self.base_nodes=[N(x,0.0) for x in bx]
         self.top_nodes =[N(x,Hc) for x in xst]
-        self.members={'top':[], 'base':[], 'walls':[], 'piers':[]}
+        self.members={'top':[], 'base':[], 'walls':[], 'piers':[], 'toe':[]}
         A=lambda t:(1.0*t, 1.0*t**3/12)
         At,It=A(p.t_top); Ab,Ib=A(p.t_base)
-        for i in range(len(xst)-1):
+        for i in range(len(bx)-1):
             e=self.fr.add_element(self.base_nodes[i],self.base_nodes[i+1],p.Ecm*1e3,Ab,Ib)
             self.members['base'].append(e)
+            if bx[i+1]<=1e-9 or bx[i]>=W-1e-9: self.members['toe'].append(e)
+        for i in range(len(xst)-1):
             e=self.fr.add_element(self.top_nodes[i],self.top_nodes[i+1],p.Ecm*1e3,At,It)
             self.members['top'].append(e)
         # walls (vertical chains) at each wall_x
@@ -107,12 +120,17 @@ class Box:
             els=[self.fr.add_element(ids[k],ids[k+1],p.Ecm*1e3,Aw,Iw) for k in range(len(zst)-1)]
             self.wall_chains.append(dict(x=wx,outer=outer,t=t,ids=ids,els=els))
             self.members['walls' if outer else 'piers'].extend(els)
-        # Winkler springs under base nodes
+        # Winkler springs under base nodes; stiffness from the layered ground when a profile is given
+        self.base_width=bx[-1]-bx[0]+(p.t_wall if p.toe<=1e-9 else 0.0)
+        self.founding_depth=p.fill+p.t_top+p.height+p.t_base
+        self.ks=p.ks
+        if p.profile is not None and p.ks_from_profile:
+            self.ks=p.profile.subgrade_modulus(self.base_width,self.founding_depth)
         for i,nid in enumerate(self.base_nodes):
-            if i==0: trib=(xst[1]-xst[0])/2
-            elif i==len(xst)-1: trib=(xst[-1]-xst[-2])/2
-            else: trib=(xst[i+1]-xst[i-1])/2
-            self.fr.nodes[nid].ky += p.ks*trib
+            if i==0: trib=(bx[1]-bx[0])/2
+            elif i==len(bx)-1: trib=(bx[-1]-bx[-2])/2
+            else: trib=(bx[i+1]-bx[i-1])/2
+            self.fr.nodes[nid].ky += self.ks*trib
             self.fr.nodes[nid]._trib=trib
         # remove horizontal rigid-body: tiny x-restraint at base mid
         self.fr.nodes[self.base_nodes[0]].kx += 1e-3
@@ -135,25 +153,43 @@ class Box:
             for wc in self.wall_chains:
                 for ei in wc['els']: self.fr.elements[ei].gy+=-p.gamma_conc*wc['t']
         elif name=='EV':
-            q=p.gamma_soil*p.fill
+            pr=p.profile
+            q=pr.sigma_v(p.fill)[0] if pr is not None else p.gamma_soil*p.fill
             for ei in self.members['top']: self.fr.elements[ei].gy+=-q
+            # soil standing on the toes (from the toe top up to ground level)
+            zt=p.fill+p.t_top+p.height
+            qt=pr.sigma_v(zt)[0] if pr is not None else p.gamma_soil*zt
+            for ei in self.members['toe']: self.fr.elements[ei].gy+=-qt
         elif name=='EH':
-            kg=p.K0*p.gamma_soil
+            pr=p.profile; kg=p.K0*p.gamma_soil
             for wc in self.wall_chains:
                 if not wc['outer']: continue
                 for k,ei in enumerate(wc['els']):
                     ni,nj=wc['ids'][k],wc['ids'][k+1]
-                    zi=(Hc-self.fr.nodes[ni].y)+p.fill; zj=(Hc-self.fr.nodes[nj].y)+p.fill
-                    pi=kg*max(zi,0); pj=kg*max(zj,0); sgn=self._inward(ei,self.W_cl/2,Hc/2)
+                    if pr is not None:                      # layered ground: K0 sigma'v + pore water, true depth below ground
+                        zi=(Hc-self.fr.nodes[ni].y)+p.fill+p.t_top/2; zj=(Hc-self.fr.nodes[nj].y)+p.fill+p.t_top/2
+                        li=pr.lateral_at_rest(max(zi,0)); lj=pr.lateral_at_rest(max(zj,0))
+                        pi=li['earth']+li['water']; pj=lj['earth']+lj['water']
+                    else:
+                        zi=(Hc-self.fr.nodes[ni].y)+p.fill; zj=(Hc-self.fr.nodes[nj].y)+p.fill
+                        pi=kg*max(zi,0); pj=kg*max(zj,0)
+                    sgn=self._inward(ei,self.W_cl/2,Hc/2)
                     self.fr.elements[ei].wt_i+=sgn*pi; self.fr.elements[ei].wt_j+=sgn*pj
         elif name in ('LS','LS1'):
-            press=p.K0*p.surcharge
+            pr=p.profile
             for wi,wc in enumerate(self.wall_chains):
                 if not wc['outer']: continue
                 if name=='LS1' and wi!=0: continue
-                for ei in wc['els']:
+                for k,ei in enumerate(wc['els']):
+                    if pr is not None:
+                        ni,nj=wc['ids'][k],wc['ids'][k+1]
+                        zi=(Hc-self.fr.nodes[ni].y)+p.fill+p.t_top/2; zj=(Hc-self.fr.nodes[nj].y)+p.fill+p.t_top/2
+                        pi=pr.layer_at(max(zi,0)).k0*p.surcharge; pj=pr.layer_at(max(zj,0)).k0*p.surcharge
+                    else: pi=pj=p.K0*p.surcharge
                     sgn=self._inward(ei,self.W_cl/2,Hc/2)
-                    self.fr.elements[ei].wt_i+=sgn*press; self.fr.elements[ei].wt_j+=sgn*press
+                    self.fr.elements[ei].wt_i+=sgn*pi; self.fr.elements[ei].wt_j+=sgn*pj
+            if name=='LS':
+                for ei in self.members['toe']: self.fr.elements[ei].gy+=-p.surcharge
         elif name=='HB':
             self._hb(hb_pos, hb_two)
         u,res=self.fr.solve(); self._last_u=u; return res
@@ -218,7 +254,7 @@ class Box:
         u=self.combine_u(fmap); pr=[]; Rs=[]
         for nid in self.base_nodes:
             ky=self.fr.nodes[nid].ky; R=abs(ky*u[3*nid+1]); trib=self.fr.nodes[nid]._trib
-            pr.append(R/trib); Rs.append(ky* -u[3*nid+1])
+            pr.append(R/trib); Rs.append(ky*u[3*nid+1])      # + = compression on the ground (checked: sum equals the applied load)
         return max(pr),min(pr),min(Rs)
 
     def envelope(self, member, combos):
@@ -248,3 +284,70 @@ class Box:
             c=dict(base); c['LS']=1.0; c[hb]=1.0; combos.append(c)
         c=dict(base); c['LS']=1.0; combos.append(c)
         return combos
+
+    # ---------- internal actions along the members ----------
+    def _chain(self, els):
+        """x (or z) stations and element list of a straight member chain."""
+        fr=self.fr; e0=fr.elements[els[0]]
+        horiz=abs(fr.nodes[e0.nj].x-fr.nodes[e0.ni].x)>abs(fr.nodes[e0.nj].y-fr.nodes[e0.ni].y)
+        st=[(fr.nodes[fr.elements[e].ni].x if horiz else fr.nodes[fr.elements[e].ni].y) for e in els]
+        last=fr.elements[els[-1]]; st.append(fr.nodes[last.nj].x if horiz else fr.nodes[last.nj].y)
+        return st,horiz
+
+    def diagram(self, els, F):
+        """Internal moment (positive = tension on the -local-y side, i.e. sagging for a slab drawn left to right),
+        shear and axial force at the element ends of a chain: lists of (station, M, V, N) with two entries per joint."""
+        st,_=self._chain(els); out=[]
+        for k,e in enumerate(els):
+            f=F[e]
+            out.append((st[k],   f[2],  f[1], -f[0]))      # checked on dead load: mid-span sags (+), supports hog (-)
+            out.append((st[k+1], -f[5], -f[4],  f[3]))
+        return out
+
+    def shear_at(self, els, F, pos):
+        """Shear force at station pos of a chain (linear inside an element)."""
+        st,_=self._chain(els)
+        for k,e in enumerate(els):
+            a,b=st[k],st[k+1]
+            if min(a,b)-1e-9<=pos<=max(a,b)+1e-9:
+                f=F[e]; xi=(pos-a)/(b-a) if abs(b-a)>1e-12 else 0.0
+                return f[1]+(-f[4]-f[1])*xi
+        return 0.0
+
+    def faces(self, member):
+        """Chains of a member with the stations of the support faces: [(elements, [(face station, direction into the span)])]."""
+        p=self.p; out=[]
+        if member in('top','base'):
+            sup=[]
+            for wc in self.wall_chains:
+                sup.append((wc['x']+wc['t']/2,+1.0)); sup.append((wc['x']-wc['t']/2,-1.0))
+            lo,hi=(self.bx[0],self.bx[-1]) if member=='base' else (self.xst[0],self.xst[-1])
+            out.append((self.members[member],[(x,d) for x,d in sup if lo-1e-9<=x<=hi+1e-9]))
+        else:
+            for wc in self.wall_chains:
+                if wc['outer']!=(member=='walls'): continue
+                out.append((wc['els'],[(p.t_base/2,+1.0),(p.Hc-p.t_top/2,-1.0)]))
+        return out
+
+    def design_actions(self, member, combos, d):
+        """Envelope for the design of one member type.
+        M_in / M_out: largest moments putting the inner / outer face in tension (kNm/m),
+        V_d: largest shear at the effective depth d from a support face (6.2.1(8)), V_face: at the face."""
+        p=self.p; M_in=M_out=V_d=V_f=N_c=0.0
+        for fmap in combos:
+            F=self.combine_F(fmap)
+            for ci,(els,sup) in enumerate(self.faces(member)):
+                for stn,m,v,n in self.diagram(els,F):
+                    if member=='top': a,b=m,-m                      # sagging -> inner (bottom) face
+                    elif member=='base': a,b=-m,m                   # sagging -> outer (bottom) face
+                    else:
+                        x=self.fr.nodes[self.fr.elements[els[0]].ni].x
+                        right=x>self.W_cl/2
+                        a,b=((-m,m) if right else (m,-m)) if member=='walls' else (abs(m),abs(m))
+                    M_in=max(M_in,a); M_out=max(M_out,b); N_c=max(N_c,n)
+                st,_=self._chain(els); lo,hi=min(st),max(st)
+                for x,dr in sup:
+                    V_f=max(V_f,abs(self.shear_at(els,F,x)))
+                    xd=x+dr*d
+                    if lo<=xd<=hi: V_d=max(V_d,abs(self.shear_at(els,F,xd)))
+        return dict(M_in=M_in,M_out=M_out,V_d=V_d,V_face=V_f,N=N_c)

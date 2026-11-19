@@ -57,6 +57,8 @@ DEFAULTS = dict(
     OUT_D=16, OUT_S=150, TOPIN_D=16, TOPIN_S=200, BOTIN_D=16, BOTIN_S=200,
     WALLIN_D=12, WALLIN_S=200, PIER_D=12, PIER_S=200, DIST_D=12, DIST_S=200,
     HCH_D=12, HCH_S=200, SC_RC=20, BAR_STOCK=12000,
+    TOE=0,                      # base slab projection beyond the outer wall faces (same toe as the wing walls)
+    FREE_EDGE_LEG=0,            # U-cap leg at the toe edge; 0 = max(2 x base thickness (EN 1992-1-1 9.3.1.4), anchorage)
 )
 
 
@@ -170,46 +172,64 @@ def build(P_in: dict) -> Drawing:
     MK = lambda m, k: (f"{m}/{m}a" if m in ("01", "02", "13") else m) + f"-T{num(BD(k))}-{num(BS(k))}"
     D = Drawing(sc=P["SC_RC"])
 
-    def bar(pts, mark):
+    def bar(pts, mark, dia=None):
         if _plen(pts) > P["BAR_STOCK"] + 0.5:
             D.warnings.append(f"bar {mark}: developed length {_plen(pts):.0f} mm exceeds the "
                               f"{P['BAR_STOCK']:.0f} mm stock length - lapped pieces not drawn yet")
-        D.pl.append((pts, False, "CBC_REBAR", mark))
+        D.pl.append((pts, False, "CBC_REBAR", mark, dia))
 
     # concrete outline + cells
-    D.pl.append((outerpoly(P), True, "CBC_CONC", None))
+    toe = float(P.get("TOE", 0) or 0); A = wt / 2.0 + toe
+    if toe > 0:
+        ch = P["CHAMFER"]; a_ = wt / 2.0
+        D.pl.append(([(-A + ch, -tb), (A - ch, -tb), (A, -tb + ch), (A, -ch), (A - ch, 0), (a_, 0), (a_, hw - ch), (a_ - ch, hw),
+                      (-a_ + ch, hw), (-a_, hw - ch), (-a_, 0), (-A + ch, 0), (-A, -ch), (-A, -tb + ch)], True, "CBC_CONC", None))
+    else:
+        D.pl.append((outerpoly(P), True, "CBC_CONC", None))
     for j in range(nc):
         D.pl.append((cellpoly(P, j), True, "CBC_CONC", None))
     # blinding
-    q = [(-wt / 2, -tb), (wt / 2, -tb), (wt / 2, -(tb + bl)), (-wt / 2, -(tb + bl))]
+    q = [(-A, -tb), (A, -tb), (A, -(tb + bl)), (-A, -(tb + bl))]
     D.hatches.append((q, "AR-SAND", "CBC_HATCH")); D.pl.append((q, True, "CBC_THIN", None))
 
     d1 = BD("OUT"); co = cv + d1 / 2.0; a = wt / 2.0; lap = P["LAP_MULT"] * d1
     lgA = (htot - 2 * cv) / 2.0 + lap / 2.0
     stg = min(0.65 * lap, (htot - 2 * cv) / 2.0 - lap / 2.0 - 100.0)          # (cbc:stg)
     # 01 top U-bar
-    bar([(-a + co, hw - co - lgA - stg), (-a + co, hw - co), (a - co, hw - co), (a - co, hw - co - (lgA - stg))], "01")
-    # 02 base U-bar (legs inside 01)
-    bar([(-a + co + d1, -tb + co + (lgA - stg)), (-a + co + d1, -tb + co), (a - co - d1, -tb + co),
-         (a - co - d1, -tb + co + lgA + stg)], "02")
+    bar([(-a + co, hw - co - lgA - stg), (-a + co, hw - co), (a - co, hw - co), (a - co, hw - co - (lgA - stg))], "01", d1)
+    if toe <= 0:
+        # 02 base U-bar (legs inside 01)
+        bar([(-a + co + d1, -tb + co + (lgA - stg)), (-a + co + d1, -tb + co), (a - co - d1, -tb + co),
+             (a - co - d1, -tb + co + lgA + stg)], "02", d1)
+    else:
+        # with a toe the bottom bars run through to the toe edges and are capped there (free edge, 9.3.1.4);
+        # the outer wall bars start from L-shaped starters anchored in the base (mark 21), lapped with 01 as before
+        anch = P["ANCH_MULT"] * d1
+        cap = P.get("FREE_EDGE_LEG") or max(2.0 * tb, anch)
+        cap = min(cap, A - co - 50.0)
+        bar([(-A + co + cap, -co), (-A + co, -co), (-A + co, -tb + co), (A - co, -tb + co), (A - co, -co), (A - co - cap, -co)], "02", d1)
+        y0 = -tb + co + d1
+        for sg, top in ((-1, -tb + co + (lgA - stg)), (1, -tb + co + lgA + stg)):
+            x = sg * (a - co - d1)
+            bar([(x - sg * anch, y0), (x, y0), (x, top)], "21", d1)
     c3, c4, d5, dd = BD("TOPIN"), BD("BOTIN"), BD("WALLIN"), BD("DIST")
     # 03 top slab bottom face, legs bent down into the outer walls
     y = shh + cv + c3 / 2.0; u = leg(P, c3, tw)
-    bar([(-a + co + d1, y - u), (-a + co + d1, y), (a - co - d1, y), (a - co - d1, y - u)], "03")
+    bar([(-a + co + d1, y - u), (-a + co + d1, y), (a - co - d1, y), (a - co - d1, y - u)], "03", c3)
     # 04 base slab top face, legs bent up
     y = -(cv + c4 / 2.0); u = leg(P, c4, tw)
-    bar([(-a + co + d1, y + u), (-a + co + d1, y), (a - co - d1, y), (a - co - d1, y + u)], "04")
+    bar([(-a + co + d1, y + u), (-a + co + d1, y), (a - co - d1, y), (a - co - d1, y + u)], "04", c4)
     # 05 outer wall inner face
     for sg in (-1, 1):
         x0 = sg * (wc / 2.0 + cv + d5 / 2.0); u = -sg * leg(P, d5, min(tt, tb))
-        bar([(x0 + u, -tb + co + d1), (x0, -tb + co + d1), (x0, hw - co - d1), (x0 + u, hw - co - d1)], "05")
+        bar([(x0 + u, -tb + co + d1), (x0, -tb + co + d1), (x0, hw - co - d1), (x0 + u, hw - co - d1)], "05", d5)
     # 06 pier bars + 08 distribution on pier faces
     dp = BD("PIER")
     for j in range(1, nc):
         x1 = -wc / 2.0 + j * sw + (j - 1) * ti
         for x0, s in ((x1 + cv + dp / 2.0, -1.0), (x1 + ti - cv - dp / 2.0, 1.0)):
             u = s * leg(P, dp, min(tt, tb))
-            bar([(x0 + u, -tb + co + d1), (x0, -tb + co + d1), (x0, hw - co - d1), (x0 + u, hw - co - d1)], "06")
+            bar([(x0 + u, -tb + co + d1), (x0, -tb + co + d1), (x0, hw - co - d1), (x0 + u, hw - co - d1)], "06", dp)
         for xx in (x1 + cv + dp + dd / 2.0, x1 + ti - cv - dp - dd / 2.0):
             _dots(D, (xx, cv + 100), (xx, shh - 100), BS("DIST"), dd)
         if j == 1:
@@ -225,11 +245,17 @@ def build(P_in: dict) -> Drawing:
             x0 = -wt / 2.0 + tw + j * (sw + ti); x1 = x0 + sw
             for cx, cy, sx, sy in ((x0, 0, 1, 1), (x1, 0, -1, 1), (x1, shh, -1, -1), (x0, shh, 1, -1)):
                 hp = lambda X, Y: (cx + sx * X, cy + sy * Y)
-                bar([hp(k + nl + hl, -nl), hp(k + nl, -nl), hp(-nl, k + nl), hp(-nl, k + nl + hl)], "07")
+                bar([hp(k + nl + hl, -nl), hp(k + nl, -nl), hp(-nl, k + nl), hp(-nl, k + nl + hl)], "07", BD("HCH"))
     # 08 distribution dots
     y = hw - co - d1 / 2.0 - dd / 2.0; _dots(D, (-a + co + d1, y), (a - co - d1, y), BS("DIST"), dd)
     y = shh + cv + c3 + dd / 2.0;      _dots(D, (-wc / 2 + cv, y), (wc / 2 - cv, y), BS("DIST"), dd)
-    y = -tb + co + d1 / 2.0 + dd / 2.0; _dots(D, (-a + co + d1, y), (a - co - d1, y), BS("DIST"), dd)
+    y = -tb + co + d1 / 2.0 + dd / 2.0
+    if toe > 0:
+        _dots(D, (-A + co + d1, y), (A - co - d1, y), BS("DIST"), dd)
+        for sg in (-1, 1):                                              # under the capped top face of each toe
+            _dots(D, (sg * (A - co - d1), -co - d1 / 2.0 - dd / 2.0), (sg * (a + 60.0), -co - d1 / 2.0 - dd / 2.0), BS("DIST"), dd)
+    else:
+        _dots(D, (-a + co + d1, y), (a - co - d1, y), BS("DIST"), dd)
     y = -(cv + c4 + dd / 2.0);         _dots(D, (-wc / 2 + cv, y), (wc / 2 - cv, y), BS("DIST"), dd)
     for sg in (-1, 1):
         x = sg * (a - co - 1.5 * d1 - dd / 2.0); _dots(D, (x, cv + 100), (x, shh - 100), BS("DIST"), dd)
@@ -237,7 +263,9 @@ def build(P_in: dict) -> Drawing:
     # labels
     L = D.leaders.append
     L(((0, hw - co), (a * 0.6, hw + 500), MK("01", "OUT"), "CBC_RTXT"))
-    L(((0, -tb + co), (a * 0.6, -(tb + 500)), MK("02", "OUT"), "CBC_RTXT"))
+    L(((0, -tb + co), (a * 0.6, -(tb + 500)), (MK("02", "OUT") if toe <= 0 else f"02-T{num(d1)}-{num(BS('OUT'))} (CAPPED AT TOE EDGES)"), "CBC_RTXT"))
+    if toe > 0:
+        L(((a - co - d1 - P["ANCH_MULT"] * d1 * 0.5, -tb + co + d1), (a * 0.82, shh * 0.12), f"21-T{num(d1)}-{num(BS('OUT'))} STARTERS", "CBC_RTXT"))
     L(((a * -0.3, shh + cv + c3 / 2.0), (a * -0.2, shh * 0.82), MK("03", "TOPIN"), "CBC_RTXT"))
     L(((a * -0.3, -(cv + c4 / 2.0)), (a * -0.2, shh * 0.18), MK("04", "BOTIN"), "CBC_RTXT"))
     L(((wc / 2.0 + cv + d5 / 2.0, shh * 0.55), (a * 0.25, shh * 0.63), MK("05", "WALLIN"), "CBC_RTXT"))
@@ -259,6 +287,9 @@ def build(P_in: dict) -> Drawing:
     xs = [-a, -wc / 2.0, wc / 2.0, a]
     for p, q2 in zip(xs, xs[1:]):
         D.dims.append(("h", p, q2, hw, hw + 900, None))
+    if toe > 0:
+        for p, q2 in ((-A, -a), (a, A)):
+            D.dims.append(("h", p, q2, -(tb + bl), -(tb + bl + 300), None))
     ys = [-tb, 0, shh, hw]
     for p, q2 in zip(ys, ys[1:]):
         D.dims.append(("v", p, q2, a, a + 450, None))
@@ -283,7 +314,7 @@ def to_dxf(D: Drawing, path: str, origin=(200.0, 150.0)):
         dimtih=0, dimtoh=0, dimscale=1.0, dimlunit=2, dimzin=8, dimtofl=1, dimatfit=3, dimlfac=sc,
         dimclrd=4, dimclre=4, dimclrt=7, dimblk="", dimtsz=0.0))
 
-    for pts, closed, layer, _ in D.pl:
+    for pts, closed, layer, *_ in D.pl:
         msp.add_lwpolyline([V(p) for p in pts], close=closed, dxfattribs={"layer": layer})
     for pts, pat, layer in D.hatches:
         h = msp.add_hatch(dxfattribs={"layer": layer}); h.set_pattern_fill(pat, scale=0.025)      # (HT ... "AR-SAND" 0.01) x 2.5 override of RC_Extension3
@@ -328,33 +359,69 @@ def to_dxf(D: Drawing, path: str, origin=(200.0, 150.0)):
 
 
 # --------------------------------------------------------------------------- matplotlib renderer
-def to_mpl(D: Drawing, ax, dark=True):
-    """Draw in real mm. Text / dot / arrow sizes follow the paper sizes of the generator."""
+# colours of the bar marks on screen (the DXF keeps every bar on the red rebar layer, as on the drawings)
+MARK_COLOURS = {"01": "#ff3b30", "02": "#ff9500", "03": "#ffd60a", "04": "#34c759", "05": "#00c7be", "06": "#32ade6",
+                "07": "#bf5af2", "08": "#ff2d92", "21": "#a2845e", "22": "#ffffff"}
+MARK_NAMES = {"01": "top U-bar", "02": "base bottom bar", "03": "top slab, inner face", "04": "base slab, inner face",
+              "05": "outer wall, inner face", "06": "pier wall", "07": "haunch bar", "08": "distribution (dots)",
+              "21": "outer wall starter", "22": "shear link"}
+
+
+def to_mpl(D: Drawing, ax, dark=True, window=None, annotate=True, by_mark=False, fill=True, min_bar_pt=0.9, legend=False, title=None):
+    """Draw in real mm.  Bars are drawn at their true diameter (never thinner than min_bar_pt) so the
+    reinforcement reads at any zoom; by_mark colours each bar mark; window = (x0, x1, y0, y1) zooms on a detail."""
     import matplotlib.patches as mp
     from matplotlib.collections import LineCollection, PatchCollection
+    from matplotlib.lines import Line2D
     sc = D.sc; ci = 1 if dark else 2
     col = lambda la: LAYERS[la][ci]
-    ax.set_facecolor("#000000" if dark else "#ffffff"); ax.set_aspect("equal")
+    bg = "#000000" if dark else "#ffffff"
+    ax.set_facecolor(bg); ax.set_aspect("equal")
     for s in ax.spines.values(): s.set_visible(False)
     ax.set_xticks([]); ax.set_yticks([])
     # extents
     xs = [p[0] for pts, *_ in D.pl for p in pts]; ys = [p[1] for pts, *_ in D.pl for p in pts]
     x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
-    ax.set_xlim(x0 - 58 * sc, x1 + 62 * sc); ax.set_ylim(y0 - 68 * sc, y1 + 56 * sc)
+    if window: ax.set_xlim(window[0], window[1]); ax.set_ylim(window[2], window[3])
+    elif annotate: ax.set_xlim(x0 - 58 * sc, x1 + 62 * sc); ax.set_ylim(y0 - 68 * sc, y1 + 56 * sc)
+    else: ax.set_xlim(x0 - 8 * sc, x1 + 8 * sc); ax.set_ylim(y0 - 8 * sc, y1 + 8 * sc)
     ax.figure.canvas.draw()
     pt_per_mm = abs(ax.transData.transform((1, 0))[0] - ax.transData.transform((0, 0))[0]) * 72.0 / ax.figure.dpi
     fs = lambda paper_h: max(3.0, paper_h * sc * pt_per_mm * 0.95)           # cap height ~ text height
     lw = lambda paper_w: max(0.35, paper_w * sc * pt_per_mm)
+    px = lambda n: n * 72.0 / ax.figure.dpi                                  # interface text sized in screen pixels
 
+    conc = [(pts, closed) for pts, closed, la, *_ in D.pl if la == "CBC_CONC"]
+    if fill and conc:                                    # concrete shaded, openings cleared: the bars stand out
+        big = max(conc, key=lambda c: max(p[0] for p in c[0]) - min(p[0] for p in c[0]))
+        ax.add_patch(mp.Polygon(big[0], closed=True, facecolor="#2b3540" if dark else "#e3e8ee", edgecolor="none", zorder=0.5))
+        for pts, closed in conc:
+            if pts is not big[0]: ax.add_patch(mp.Polygon(pts, closed=True, facecolor=bg, edgecolor="none", zorder=0.6))
     for pts, pat, layer in D.hatches:
         ax.add_patch(mp.Polygon(pts, closed=True, facecolor="none", edgecolor=col(layer), hatch="....", lw=0, zorder=1))
-    for layer in ("CBC_THIN", "CBC_CONC", "CBC_REBAR"):
-        segs = [list(pts) + ([pts[0]] if closed else []) for pts, closed, la, _ in D.pl if la == layer]
-        w = {"CBC_CONC": 0.35, "CBC_REBAR": 0.30, "CBC_THIN": 0.13}[layer]
-        ax.add_collection(LineCollection(segs, colors=col(layer), linewidths=lw(w), zorder=3 if layer == "CBC_REBAR" else 2,
+    for layer in ("CBC_THIN", "CBC_CONC"):
+        segs = [list(pts) + ([pts[0]] if closed else []) for pts, closed, la, *_ in D.pl if la == layer]
+        w = {"CBC_CONC": 0.35, "CBC_THIN": 0.13}[layer]
+        ax.add_collection(LineCollection(segs, colors=col(layer), linewidths=lw(w), zorder=2, capstyle="round", joinstyle="round"))
+    seen = {}
+    for item in D.pl:
+        pts, closed, la, mark = item[0], item[1], item[2], item[3]; dia = item[4] if len(item) > 4 and item[4] else 12.0
+        if la != "CBC_REBAR": continue
+        c = MARK_COLOURS.get(str(mark)[:2], col(la)) if by_mark else col(la)
+        ax.add_collection(LineCollection([list(pts)], colors=c, linewidths=max(min_bar_pt, dia * pt_per_mm), zorder=3,
                                          capstyle="round", joinstyle="round"))
-    ax.add_collection(PatchCollection([mp.Circle((x, y), max(0.8 * sc, d) / 2.0) for x, y, d, _ in D.dots],
-                                      facecolor=col("CBC_REBAR"), edgecolor="none", zorder=4))
+        seen[str(mark)[:2]] = c
+    rmin = min_bar_pt / pt_per_mm * 0.75                 # dots never smaller than a readable bar
+    dc = MARK_COLOURS["08"] if by_mark else col("CBC_REBAR")
+    ax.add_collection(PatchCollection([mp.Circle((x, y), max(d / 2.0, rmin)) for x, y, d, _ in D.dots],
+                                      facecolor=dc, edgecolor="none", zorder=4))
+    if D.dots: seen["08"] = dc
+    if legend and by_mark:
+        hs = [Line2D([0], [0], color=c, lw=3, label=f"{m}  {MARK_NAMES.get(m, '')}") for m, c in sorted(seen.items())]
+        leg = ax.legend(handles=hs, loc="upper center", bbox_to_anchor=(0.5, 0.0), ncol=min(9, len(hs)), frameon=False, fontsize=px(11),
+                        labelcolor="#ffffff" if dark else "#111111", handlelength=1.4, columnspacing=1.0, borderaxespad=0.0)
+    if title: ax.text(0.01, 0.985, title, transform=ax.transAxes, color="#ffff00" if dark else "#1b3a5c", fontsize=px(12), va="top", ha="left", zorder=9)
+    if not annotate: return
     for p, q, layer in D.lines:
         ax.plot([p[0], q[0]], [p[1], q[1]], color=col(layer), lw=lw(0.13), zorder=2)
     HA = {0: "left", 1: "center", 2: "right"}; VA = {0: "baseline", 1: "bottom", 2: "center", 3: "top"}
