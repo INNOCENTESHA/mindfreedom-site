@@ -50,6 +50,7 @@ def test_what_if_inputs(win, cells, span, height, toe, skew, ground):
     win.run()
     assert "DESIGN" in win.banner.text() and win.box.p.n_cells == cells
     assert len(win.box.wall_chains) == cells + 1
+    assert max(r["length"] for r in win.sched) <= 12000 and win.plan["skew"] == skew
     for name in ("Detailing", "Schedule (BBS)", "Report", "Code checks", "Ground · Plan", "Design", "Model View"): win.goto(name)
 
 

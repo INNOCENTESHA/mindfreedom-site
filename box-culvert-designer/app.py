@@ -16,7 +16,7 @@ from PySide6 import QtCore, QtGui, QtWidgets as W
 from engine import Box, P
 from design import design_flexure, check_shear, bar_area
 import section_bb, math
-from detailing import design as ddesign, checks as dchecks, soil as dsoil, skew as dskew, ec2
+from detailing import design as ddesign, checks as dchecks, soil as dsoil, skew as dskew, ec2, bars as dbars
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavBar
 import ui_shell as ui, time
 
@@ -166,7 +166,8 @@ class Main(W.QMainWindow):
         self.i_barrel=spin(10.5,2.0,120.0,0.5,2); self.i_apron=spin(4.75,0.0,15.0,0.25,2); self.i_joint=spin(15.0,5.0,40.0,1.0,1)
         self.i_expo=W.QComboBox(); self.i_expo.addItems(["XC2","XC3","XC4","XD1","XD2","XS1","XS2","XC1"]); self.i_expo.setFixedHeight(26)
         self.i_wk=spin(0.30,0.10,0.40,0.05,2)
-        for lab,wdg in [("Toe, walls + wing walls (mm)",self.i_toe),("Skew of axis to road (°)",self.i_skew),("Wing wall flare (°)",self.i_flare),
+        self.i_pivot=W.QComboBox(); self.i_pivot.addItems(["centre","inlet","outlet"]); self.i_pivot.setFixedHeight(26)
+        for lab,wdg in [("Toe, walls + wing walls (mm)",self.i_toe),("Skew of axis to road (°)",self.i_skew),("Skew pivot",self.i_pivot),("Wing wall flare (°)",self.i_flare),
             ("Barrel length (m)",self.i_barrel),("Apron length (m)",self.i_apron),("Max joint spacing (m)",self.i_joint),
             ("Exposure class",self.i_expo),("Crack width limit (mm)",self.i_wk)]:
             sl.addRow(lab,wdg)
@@ -278,7 +279,8 @@ class Main(W.QMainWindow):
         p=self.p
         return dict(toe=self.i_toe.value(),skew=self.i_skew.value(),flare=self.i_flare.value(),apron=self.i_apron.value()*1000.0,
                     inner_width=(p.n_cells*p.span+(p.n_cells-1)*p.t_pier)*1000.0,barrel_length=self.i_barrel.value()*1000.0,
-                    joint_spacing=self.i_joint.value()*1000.0,stock=12000.0,anch_mult=self.anch_mult,lap_mult=self.lap_mult)
+                    joint_spacing=self.i_joint.value()*1000.0,stock=12000.0,anch_mult=self.anch_mult,lap_mult=self.lap_mult,pivot=self.i_pivot.currentText(),
+                    outer_width=p.W_ext*1000.0,wall_t=p.t_wall*1000.0,schedule=getattr(self,'sched',None),wall_lap=getattr(self,'wlap',None))
 
     # ---------------- run ----------------
     def run(self):
@@ -296,8 +298,10 @@ class Main(W.QMainWindow):
         self.bearing_uls=max(self.box.bearing(c)[0] for c in self.uls)
         # member design to EN 1992-1-1: flexure, minimum steel, spacing, crack width, shear at d (links when needed)
         R=self.R=ddesign.design(self.box,fck=p.fck,fyk=p.fyk,exposure=self.i_expo.currentText(),wk_lim=self.i_wk.value(),cover=p.cover)
-        self.anch_mult=math.ceil(max(v["anchorage_bent"]["multiple"] for v in R.lengths.values()))
-        self.lap_mult=math.ceil(max(v["lap50"]["multiple"] for v in R.lengths.values()))
+        mu=dbars.multiples(R,(p.height+p.t_top+p.t_base)*1000.0); self.anch_mult=mu["anch_mult"]; self.lap_mult=mu["lap_mult"]; self.wlap=mu["wall"]
+        # reinforcement section and bar schedule: no piece longer than the stock length, long runs lapped in two staggered families
+        self.bb=section_bb.build(self.detail_params(p))
+        self.sched=dbars.schedule(self.bb,section_bb.complete(self.detail_params(p)),self.i_barrel.value()*1000.0,self.i_skew.value())
         class FD: pass
         rows=[]; self.design={}
         for m in ['top','base','walls','piers']:
@@ -408,14 +412,25 @@ class Main(W.QMainWindow):
             for L in pr.layers:
                 H.append(f"<tr><td>{L.name}</td><td>{z:.1f}–{z+L.thickness:.1f}</td><td>{L.k0:.2f}</td><td>{1000*smap.get(L.name,0.0):.1f}</td></tr>"); z+=L.thickness
             H.append("</table>")
-        e=dskew.wing_walls(st["inner_width"],st["apron"],st["flare"],st["skew"]); se2=dskew.slab_effects(p.span*1000,st["skew"])
-        H.append(f"<h3 style='color:{BLUE};margin:8px 0 2px;'>Plan — skew {st['skew']:g}°</h3>")
-        if e.left["ok"] and e.right["ok"]:
-            H.append(f"<p>Wing walls: left <b>{e.left['length']:,.0f} mm</b>, right <b>{e.right['length']:,.0f} mm</b> (flare {st['flare']:g}°, apron {st['apron']:,.0f} mm).<br>"
-                     f"Apron end edge {e.apron_edge:,.0f} mm; apron area {e.apron_area/1e6:.1f} m² per end.<br>"
-                     f"Slab end zones: skew span {se2['skew_span']:,.0f} mm, transverse steel × {se2['As_factor_end_zone']:.2f}, bars × {se2['bar_length_factor']:.2f} long — {se2['treatment']}.</p>")
-        else:
-            H.append(f"<p style='color:{BAD};'>{e.left.get('reason') or e.right.get('reason')}</p>")
+        se2=dskew.slab_effects(p.span*1000,st["skew"]); Wo=p.W_ext*1000; Lb=st["barrel_length"]
+        piers=[(-Wo/2+p.t_wall*1000+j*p.span*1000+(j-0.5)*p.t_pier*1000,p.t_pier*1000) for j in range(1,p.n_cells)]
+        g=self.plan=dskew.layout(Wo,Lb,st["apron"],st["flare"],st["skew"],st["pivot"],p.t_wall*1000,piers)
+        H.append(f"<h3 style='color:{BLUE};margin:8px 0 2px;'>Plan — skew {st['skew']:g}°, pivot at the {st['pivot']}</h3>")
+        H.append(f"<p>Road horizontal; barrel ends stay parallel to the road and the wing wall ends stay on the apron edges.<br>"
+                 f"Barrel walls <b>{g['wall_length']:,.0f} mm</b> (square {Lb:,.0f}), end faces {g['end_face_length']:,.0f} mm (square {Wo:,.0f}).</p>")
+        H.append("<table cellpadding='2' style='font-size:12px;'><tr><td><b>Wing wall</b></td><td><b>length mm</b></td><td><b>change</b></td><td><b>flare °</b></td><td><b>to barrel wall °</b></td></tr>")
+        for en in ("inlet","outlet"):
+            for sd in ("left","right"):
+                w=g["ends"][en]["walls"][sd]; col="" if w["ok"] else f" style='color:{BAD};'"
+                H.append(f"<tr{col}><td>{en} {sd}</td><td>{w['length']:,.0f}</td><td>{w['change']:+,.0f}</td><td>{w['flare']:.1f}</td><td>{180-w['angle_to_barrel_wall']:.1f}</td></tr>")
+        H.append("</table>")
+        if not g["ok"]: H.append(f"<p style='color:{BAD};'>A barrel corner has slid past a wing wall end: reduce the skew, lengthen the apron, widen the flare or move the pivot.</p>")
+        H.append(f"<p>Slab end zones: skew span {se2['skew_span']:,.0f} mm, transverse steel × {se2['As_factor_end_zone']:.2f} — {se2['treatment']}.</p>")
+        H.append("<table cellpadding='2' style='font-size:11px;'><tr><td><b>skew °</b></td><td><b>barrel wall</b></td><td><b>inlet L / R</b></td><td><b>outlet L / R</b></td></tr>")
+        for r in dskew.simulate(Wo,Lb,st["apron"],st["flare"],pivot=st["pivot"]):
+            col="" if r["ok"] else f" style='color:{BAD};'"
+            H.append(f"<tr{col}><td>{r['skew']}</td><td>{r['wall_length']:,.0f}</td><td>{r['inlet_left']:,.0f} / {r['inlet_right']:,.0f}</td><td>{r['outlet_left']:,.0f} / {r['outlet_right']:,.0f}</td></tr>")
+        H.append("</table>")
         self.ground_txt.setHtml("".join(H))
         # ---- figure: earth pressure on the wall (left) and the plan with the wing walls (right)
         self.figg.clear(); ax=self.figg.add_axes([0.11,0.09,0.25,0.83]); zt=p.fill+p.t_top/2; zb=b.founding_depth
@@ -434,30 +449,30 @@ class Main(W.QMainWindow):
         ax.plot(tot,zs,color=BLUE,lw=1.4,label="+ surcharge"); ax.axhspan(zt,zb,xmin=0,xmax=0.02,color=BLUE)
         ax.set_ylim(max(zb+1.0,(pr.depth() if pr is not None else zb)*0+zb+1.0),0); ax.set_xlabel("kPa",fontsize=px(11)); ax.set_ylabel("depth below ground (m)",fontsize=px(11))
         ax.set_title("At-rest pressure on the outer wall",fontsize=px(12),color=BLUE); ax.tick_params(labelsize=px(10)); ax.legend(fontsize=px(10),loc="lower right")
-        ax2=self.figg.add_axes([0.44,0.04,0.54,0.92]); ax2.set_aspect("equal"); ax2.axis("off")
-        Wo=p.W_ext*1000; Lb=st["barrel_length"]; th=math.radians(st["skew"]); ct=math.cos(th)/math.sin(th)
-        def end(sign):
-            # barrel end at x = sign*Lb/2 ; outward direction = sign
-            pts=[]
-            for side in (1,-1):
-                y=side*Wo/2; pts.append((sign*Lb/2+ y*ct, y))
-            return pts
-        a1,a2=end(1); b1,b2=end(-1)
-        ax2.fill([a1[1],a2[1],b2[1],b1[1]],[a1[0],a2[0],b2[0],b1[0]],color="#d9e2ec",ec=BLUE,lw=1.2)
-        for sign in (1,-1):
-            if not (e.left["ok"] and e.right["ok"]): break
-            for w in (e.left,e.right):
-                x0,y0=w["start"]; x1,y1=w["end"]
-                # local end coordinates (x outward, y across) -> plan; inner width is centred on the axis
-                X0=sign*(Lb/2+x0); X1=sign*(Lb/2+x1); Y0=y0*sign; Y1=y1*sign
-                ax2.plot([Y0,Y1],[X0,X1],color=BAD,lw=2)
-                ax2.text((Y0+Y1)/2,(X0+X1)/2,f" {w['length']:,.0f}",fontsize=px(11),color=BAD)
-            xl,yl=e.left["end"]; xr,yr=e.right["end"]
-            ax2.plot([yl*sign,yr*sign],[sign*(Lb/2+xl),sign*(Lb/2+xr)],color="#4a627a",lw=1,ls="--")
-        ax2.plot([0,0],[-Lb/2-st["apron"]*1.15,Lb/2+st["apron"]*1.15],color=ACC,lw=0.8,ls="-.")
-        r=Wo*1.6; ax2.plot([-r,r],[-r*ct,r*ct],color="#7a8b9a",lw=3,alpha=0.35); ax2.text(r*0.98,r*ct,"  road",fontsize=px(10),color="#4a627a",va="center")
-        ax2.set_title(f"Plan: barrel {Lb/1000:.1f} m, skew {st['skew']:g}°, wing walls left / right",fontsize=px(12),color=BLUE)
+        ax2=self.figg.add_axes([0.44,0.04,0.54,0.92]); self.draw_plan(ax2,g,dskew.layout(Wo,Lb,st["apron"],st["flare"],90.0,st["pivot"],p.t_wall*1000,piers),px)
         self.cvg.draw_idle()
+
+    def draw_plan(self,ax,g,sq,px,title=True):
+        """Plan with the road horizontal: skewed layout solid, the square crossing it was turned from dashed."""
+        ax.set_aspect("equal"); ax.axis("off"); L=abs(g["ends"]["outlet"]["y"])*2; xs=[q[0] for e in g["ends"].values() for q in e["apron_poly"]]+[q[0] for q in g["outline"]]
+        x0,x1=min(xs),max(xs); r=max(x1-x0,L)*0.12
+        ax.fill([x0-r,x1+r,x1+r,x0-r],[-L*0.36,-L*0.36,L*0.36,L*0.36],color="#b8c0c9",alpha=0.45,lw=0,zorder=0)
+        ax.plot([x0-r,x1+r],[0,0],color="#ffffff",lw=1.2,ls=(0,(8,6)),zorder=1); ax.text(x1+r,0,"  ROAD",fontsize=px(10),color="#4a627a",va="center")
+        ax.fill(*zip(*sq["outline"]),fill=False,ec="#8a94a0",lw=0.8,ls="--",zorder=2)
+        for en in ("inlet","outlet"):
+            e=g["ends"][en]; ax.fill(*zip(*e["apron_poly"]),color="#e9eef3",ec="#8a94a0",lw=0.7,zorder=2)
+            for sd in ("left","right"):
+                w0=sq["ends"][en]["walls"][sd]; ax.plot(*zip(w0["start"],w0["end"]),color="#8a94a0",lw=0.8,ls="--",zorder=3)
+                w=e["walls"][sd]; (ax_,ay),(bx_,by)=w["start"],w["end"]
+                ax.plot([ax_,bx_],[ay,by],color=BAD if w["ok"] else "#7d3c98",lw=3.2,solid_capstyle="butt",zorder=5)
+                ax.text((ax_+bx_)/2,(ay+by)/2,f" {w['length']:,.0f}\n ({w['change']:+,.0f})",fontsize=px(9.5),color=BAD,va="center",ha="left" if sd=="right" else "right",zorder=6)
+        ax.fill(*zip(*g["outline"]),color="#f4f6f9",ec=BLUE,lw=1.0,zorder=3)
+        for poly in g["walls"]: ax.fill(*zip(*poly),color=BLUE,lw=0,zorder=4)
+        ax.plot(*zip(*g["axis"]),color=ACC,lw=0.8,ls="-.",zorder=5); ax.plot(*g["pivot_point"],"o",ms=px(6),color=ACC,zorder=7)
+        ax.text(g["pivot_point"][0],g["pivot_point"][1],"  pivot",fontsize=px(9),color=ACC,va="bottom",zorder=7)
+        ax.text(g["ends"]["inlet"]["axis_x"],-L/2-abs(g["ends"]["inlet"]["apron_edge"][0][1]+L/2)*1.12,"INLET",fontsize=px(9.5),color="#4a627a",ha="center",va="top")
+        ax.text(g["ends"]["outlet"]["axis_x"],L/2+abs(g["ends"]["outlet"]["apron_edge"][0][1]-L/2)*1.12,"OUTLET",fontsize=px(9.5),color="#4a627a",ha="center",va="bottom")
+        if title: ax.set_title(f"Skew {g['skew']:g}° (dashed: square crossing)",fontsize=px(12),color=BLUE)
 
     def _fill_checks(self,rows):
         self.table.setRowCount(len(rows))
@@ -496,7 +511,6 @@ class Main(W.QMainWindow):
 
     def _draw_bb(self,fig,p,dark):
         """SECTION B-B - BARREL REINFORCEMENT, drawn exactly as the AutoCAD generator does."""
-        self.bb=section_bb.build(self.detail_params(p))
         self._render_bb(fig,dark)
         if not getattr(fig,"_cbc_resize",None):          # text / line sizes follow the paper scale: redraw when resized
             fig._cbc_resize=fig.canvas.mpl_connect("resize_event",lambda ev,fg=fig,dk=dark:self._render_bb(fg,dk))
@@ -641,44 +655,20 @@ class Main(W.QMainWindow):
 
     # ---------------- BBS ----------------
     def _fill_bbs(self,p):
-        if self.export and self.export.get("BBS"):
-            rows=self.export["BBS"]; self.bbs.setRowCount(len(rows)); tot=0.0
-            for r,b in enumerate(rows):     # mark, member, bar, dia, sp, nm, ne, total, shape, A, B, C, L, kg/m, weight, ...
-                tot+=float(b[14])
-                for c,val in enumerate([b[0],b[1],b[2],b[7],b[8],b[9],b[12],b[14]]):
-                    it=W.QTableWidgetItem(str(val))
-                    if c in (3,4,5,6,7): it.setTextAlignment(QtCore.Qt.AlignCenter)
-                    self.bbs.setItem(r,c,it)
-            self.bbs.resizeColumnsToContents(); self.bbs_total=tot; return
-        left,xwalls,Wext=self._wallxs(p); OH=p.height+p.t_top+p.t_base
-        d=lambda m:self.design[m]['fd'].dia; s=lambda m:self.design[m]['fd'].spacing
-        def mass(dia,L,n): return bar_area(dia)/1e6*7850*(L/1000)*n
-        bend=lambda dia:max(5*dia,90)
-        Wmm=Wext*1000; OHmm=OH*1000; Hmm=p.height*1000
-        n_across=int(Wmm/150)  # along barrel per metre-ish count placeholder
-        rows=[]
-        rows.append(("01","Top slab (U-bar)",f"T{d('top')}",1,"21",bend(d('top')),int(Wmm+2*Hmm*0.5),0))
-        rows.append(("02","Base slab (U-bar)",f"T{d('base')}",1,"21",bend(d('base')),int(Wmm+2*Hmm*0.5),0))
-        rows.append(("03","Top slab transverse",f"T{d('top')}",1,"21",bend(d('top')),int(Wmm-2*p.cover*1000),0))
-        rows.append(("04","Base slab transverse",f"T{d('base')}",1,"21",bend(d('base')),int(Wmm-2*p.cover*1000),0))
-        rows.append(("05","Outer wall vertical",f"T{d('walls')}",2,"21",bend(d('walls')),int(Hmm+2*300),0))
-        if p.n_cells>1:
-            rows.append(("06","Pier wall (both faces)",f"T{d('piers')}",2*(p.n_cells-1),"21",bend(d('piers')),int(Hmm+2*300),0))
-        rows.append(("07","Haunch bars",f"T{d('piers') if p.n_cells>1 else d('walls')}",2*p.n_cells,"99",bend(12),int(2*220+480),0))
-        rows.append(("08","Longitudinal distribution",f"T12",1,"00",0,10500,0))
-        # fill masses
-        out=[]
-        for mk,mem,bar,no,shp,A,L,_ in rows:
-            dia=int(bar[1:]); out.append((mk,mem,bar,no,shp,A,L,mass(dia,L,no)))
-        self.bbs.setRowCount(len(out)); tot=0
-        for r,(mk,mem,bar,no,shp,A,L,ms) in enumerate(out):
-            tot+=ms
-            for c,val in enumerate([mk,mem,bar,str(no),shp,f"{A:.0f}" if A else "—",f"{L:,}",f"{ms:,.1f}"]):
+        """Bar schedule built from the reinforcement section: every piece within the stock length, laps staggered."""
+        rows=self.sched; self.bbs.setColumnCount(9); self.bbs.setHorizontalHeaderLabels(["Mark","Member","Bar","Spacing","No.","Shape (BS 8666)","Legs A / B / C … (mm)","Length (mm)","Mass (kg)"])
+        self.bbs.setRowCount(len(rows)+1); tot=0.0
+        for r,b in enumerate(rows):
+            tot+=b["mass"]
+            vals=[b["mark"],b["member"]+(f" — lap {b['lap']['l0']:.0f}" if b.get("lap") else ""),f"T{b['dia']:.0f}",f"{b['spacing']:.0f}",f"{b['no']:,}",b["shape"]," / ".join(f"{x:,.0f}" for x in b["legs"]),f"{b['length']:,.0f}",f"{b['mass']:,.1f}"]
+            for c,val in enumerate(vals):
                 it=W.QTableWidgetItem(val)
-                if c in (3,5,6,7): it.setTextAlignment(QtCore.Qt.AlignCenter)
+                if c>=2: it.setTextAlignment(QtCore.Qt.AlignCenter)
+                if c==7 and b["length"]>12000: it.setForeground(QtGui.QBrush(QtGui.QColor(BAD)))
                 self.bbs.setItem(r,c,it)
-        self.bbs.resizeColumnsToContents()
-        self.bbs_total=tot
+        for c,val in ((1,f"Total — barrel {self.i_barrel.value():.2f} m at skew {self.i_skew.value():g}°, longest bar {max(b['length'] for b in rows):,.0f} mm"),(8,f"{tot:,.0f}")):
+            it=W.QTableWidgetItem(val); f=it.font(); f.setBold(True); it.setFont(f); self.bbs.setItem(len(rows),c,it)
+        self.bbs.resizeColumnsToContents(); self.bbs_total=tot
 
     # ---------------- report ----------------
     def _fill_report(self,p):
@@ -708,7 +698,7 @@ class Main(W.QMainWindow):
         <tr><td><b>Max utilisation</b></td><td>{self.maxutil:.2f}</td></tr>
         <tr><td><b>Governing check</b></td><td>{self.govern}</td></tr>
         <tr><td><b>Ground bearing</b></td><td>SLS {self.bearing_sls:.1f} kPa · ULS {self.bearing_uls:.1f} kPa (allow 210)</td></tr>
-        <tr><td><b>Steel (barrel est.)</b></td><td>{getattr(self,'bbs_total',0):,.0f} kg per metre run of schedule marks</td></tr>
+        <tr><td><b>Steel, barrel</b></td><td>{getattr(self,'bbs_total',0):,.0f} kg in the barrel (bar schedule)</td></tr>
         </table>
         <p style='color:#90a0b0;font-size:11px;'>Prototype — figures recalculated live from the frame model. Not for construction.</p>
         """

@@ -96,3 +96,70 @@ def end_zone_bars(width: float, skew_deg: float, spacing: float, cover: float = 
     n = int(zone / sp_axis)
     lengths = [full * (1 - (i * sp_axis) / zone) for i in range(1, n + 1)]      # bars shorten toward the acute corner
     return dict(zone=zone, n=n, lengths=[x for x in lengths if x > 300.0], full_length=full, spacing_along_axis=sp_axis)
+
+
+# ------------------------------------------------------------------ plan layout, road horizontal
+PIVOTS = {"centre": 0.0, "inlet": -0.5, "outlet": 0.5}
+
+
+def layout(width: float, length: float, apron: float, flare_deg: float, skew_deg: float, pivot: str = "centre",
+           wall_t: float = 250.0, inner_walls: tuple = (), wing_t: float = 250.0) -> dict:
+    """Plan of the culvert with the road along X (always horizontal) and the square crossing as the starting point.
+
+    Square layout (skew 90): barrel axis along Y, barrel ends at y = -L/2 (inlet) and +L/2 (outlet), wing walls from the
+    barrel corners out to the apron outer edges at y = -(L/2 + A) and L/2 + A.
+
+    Skew: the barrel axis is turned about the pivot until it makes the skew angle with the road.  Everything that
+    belongs to the road stays put: the barrel end faces stay parallel to the road at the same distance from it, and
+    the apron outer edges, with the points where the wing walls meet them, do not move.  So
+      * the barrel becomes a parallelogram: each wall is L / sin(skew) long, the cross-section normal to the axis is
+        unchanged (wall thickness and clear spans are true), and the end faces are W / sin(skew) long;
+      * every barrel corner slides along its end face by (y_end - y_pivot) cot(skew);
+      * each wing wall still runs from its barrel corner to its unmoved end on the apron edge, so it is stretched on
+        one side and shortened on the other.
+    pivot: 'centre' (road centre line), 'inlet' or 'outlet' (the barrel / wing wall junction line of that end).
+    width: overall width normal to the axis; inner_walls: offsets of pier centre lines from the axis (normal to it).
+    Lengths in the units given; angles in degrees."""
+    th = math.radians(skew_deg); s = math.sin(th); ct = math.cos(th) / s
+    L, A, W = length, apron, width; yp = PIVOTS[pivot] * L; b = math.radians(flare_deg)
+    axis_x = lambda y: (y - yp) * ct                                  # the culvert axis at distance y from the road centre
+    half = W / 2.0 / s                                                # half width measured along the road
+    ends = {}
+    for name, sg in (("inlet", -1.0), ("outlet", 1.0)):
+        ye = sg * L / 2.0; xc = axis_x(ye); walls = {}
+        for side, sd in (("left", -1.0), ("right", 1.0)):
+            corner = (xc + sd * half, ye)
+            tip0 = (sd * (W / 2.0 + A * math.tan(b)), ye + sg * A)   # where this wall met the apron edge at the square crossing
+            sq_corner = (sd * W / 2.0, ye)
+            v = (tip0[0] - corner[0], tip0[1] - corner[1]); ln = math.hypot(*v); l_sq = math.dist(sq_corner, tip0)
+            flare_now = math.degrees(math.atan2(sd * v[0], sg * v[1]))               # from the road normal, outward positive
+            wall_dir = (sg * math.cos(th), sg * math.sin(th))                        # barrel wall direction, outward at this end
+            ang_barrel = math.degrees(math.acos(max(-1.0, min(1.0, (v[0] * wall_dir[0] + v[1] * wall_dir[1]) / ln))))
+            ang_apron = math.degrees(math.atan2(abs(v[1]), sd * v[0])) if ln else 90.0   # interior angle with the apron outer edge
+            walls[side] = dict(start=corner, end=tip0, length=ln, square_length=l_sq, change=ln - l_sq, flare=flare_now,
+                               angle_to_barrel_wall=ang_barrel, angle_to_apron_edge=ang_apron, slide=corner[0] - sq_corner[0],
+                               ok=sd * v[0] > -1e-9 and ln > 0.25 * l_sq,
+                               reason="" if sd * v[0] > -1e-9 else "the barrel corner has slid past the wing wall end: reduce the skew, lengthen the apron or move the pivot")
+        ends[name] = dict(y=ye, axis_x=xc, walls=walls, apron_edge=(walls["left"]["end"], walls["right"]["end"]),
+                          apron_poly=[walls["left"]["start"], walls["right"]["start"], walls["right"]["end"], walls["left"]["end"]])
+    def line(off):                                                    # a line parallel to the axis, off normal to it
+        return [(axis_x(-L / 2.0) + off / s, -L / 2.0), (axis_x(L / 2.0) + off / s, L / 2.0)]
+    outline = [line(-W / 2.0)[0], line(W / 2.0)[0], line(W / 2.0)[1], line(-W / 2.0)[1]]
+    wall_polys = []
+    for c, t in [(-W / 2.0 + wall_t / 2.0, wall_t), (W / 2.0 - wall_t / 2.0, wall_t)] + [(c, t) for c, t in inner_walls]:
+        p, q = line(c - t / 2.0), line(c + t / 2.0); wall_polys.append([p[0], q[0], q[1], p[1]])
+    return dict(skew=skew_deg, pivot=pivot, pivot_point=(0.0, yp), ends=ends, outline=outline, walls=wall_polys, axis=[(axis_x(-L / 2.0 - A), -L / 2.0 - A), (axis_x(L / 2.0 + A), L / 2.0 + A)],
+                wall_length=L / s, end_face_length=W / s, slide=(L / 2.0) * abs(ct), plan_area=W * L / s,
+                ok=all(w["ok"] for e in ends.values() for w in e["walls"].values()))
+
+
+def simulate(width: float, length: float, apron: float, flare_deg: float, angles=(45, 60, 75, 90, 105, 120, 135), pivot: str = "centre") -> list:
+    """Wing wall lengths and orientations over a range of skews: one row per angle."""
+    rows = []
+    for a in angles:
+        g = layout(width, length, apron, flare_deg, a, pivot); r = dict(skew=a, wall_length=g["wall_length"], end_face=g["end_face_length"], ok=g["ok"])
+        for e in ("inlet", "outlet"):
+            for sd in ("left", "right"):
+                w = g["ends"][e]["walls"][sd]; r[f"{e}_{sd}"] = w["length"]; r[f"{e}_{sd}_flare"] = w["flare"]
+        rows.append(r)
+    return rows

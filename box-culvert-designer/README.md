@@ -39,6 +39,17 @@ The drawing sheets need the generator files in a `generator` folder next to `app
 - **Message Window** — command and analysis messages, with every unsatisfied check listed.
 - `F5` analyse and design, `Ctrl+S` / `Ctrl+O` save and open a project (`.cbc`), `Ctrl+N` new.
 
+## Bars as supplied, and skew
+
+- No scheduled bar exceeds the 12 m stock length, the preferred sizes, a supplied steel grade, the 2750 mm transport
+  width of bent shapes or the BS 8666 minimum legs (`detailing/bars.py`). Longer transverse bars are cut and lapped in
+  two alternating families, lap centres at least 1.3 l0 apart and placed in the low-stress zones; U-bars too tall to
+  travel get short legs and a lapped wall bar (mark 11); a toe hairpin too tight to bend becomes a separate U-cap (mark 12).
+- Skew (`detailing/skew.layout`): the road is horizontal; the barrel axis turns about the pivot (road centre, or the
+  inlet / outlet junction line); barrel ends stay parallel to the road, walls stretch to L / sin(skew) with the true
+  cross-section, and the wing wall ends stay on the apron edges, so walls stretch on one side and shorten on the other.
+  `python tests/skew_simulation.py out.png centre` draws the plan at eight skews and tabulates the wall lengths.
+
 ## Verification
 
     python -m pytest tests                     # closed-form frames, workbook comparison, detailing rules, GUI, drawing runtime

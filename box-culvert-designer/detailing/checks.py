@@ -56,17 +56,31 @@ def run(box, R, site=None, profile=None) -> list:
     if lm:
         d1 = max(R.faces[("top", "outer")].dia, R.faces[("base", "outer")].dia, R.faces[("walls", "outer")].dia); lap = lm * d1
         htot = (p.height + p.t_top + p.t_base) * 1000; cv = R.cover["used"]
-        stg = min(0.65 * lap, (htot - 2 * cv) / 2 - lap / 2 - 100)
-        out.append(row("Laps", "8.7.2(3)", "Outer wall bars: centres of adjacent laps", f"{2 * stg:.0f} mm apart", f">= 1.3 l0 = {1.3 * lap:.0f} mm", 2 * stg >= 1.3 * lap - 1e-6,
-                       "alternate bars reversed so that not more than 50 % lap at one section"))
+        stg = max(0.0, min(0.65 * lap, (htot - 2 * cv) / 2 - lap / 2 - 100, 2700.0 - ((htot - 2 * cv) / 2 + lap / 2)))
+        wl = site.get("wall_lap") or {}
+        if wl.get("wall_bar"):
+            out.append(row("Bars as supplied", "BS 8666", "Outer walls: U-bar legs would exceed the transport width", "short legs + straight wall bar (mark 11)", "bent shapes <= 2750 mm", wl.get("fits", True),
+                           "wall bar laps with the top and the base legs; " + ("alternate laps 1.3 l0 apart" if wl["staggered"] else "all lapped at one section, 100 % lap length")))
+        elif 2 * stg >= 1.3 * lap - 1e-6:
+            out.append(row("Laps", "8.7.2(3)", "Outer wall bars: centres of adjacent laps", f"{2 * stg:.0f} mm apart", f">= 1.3 l0 = {1.3 * lap:.0f} mm", True,
+                           "alternate bars reversed so that not more than 50 % lap at one section"))
+        else:                                       # wall too short to stagger: all bars lap at one section, lap at the 100 % value
+            l100 = R.lengths[d1]["lap100"]["l0"]; room = htot - 2 * cv - 2 * ec2.bs8666_min_end_projection(d1)
+            out.append(row("Laps", "8.7.3 Table 8.3", "Outer wall bars: wall too short to stagger the laps, all lapped at one section", f"lap {lap:.0f} mm", f">= l0 (100 %) {l100:.0f} mm, <= {room:.0f} mm available",
+                           lap >= l100 - 1e-6 and lap <= room + 1e-6, "alpha6 = 1.5; transverse bars across the lap zone per 8.7.4.1"))
         out.append(row("Laps", "8.7.2(3)", "Clear distance between the two bars of a lap", "bars in contact", f"<= {max(4 * d1, 50):.0f} mm", True))
     # ---- stock length
     stock = site.get("stock", 12000.0)
-    wext = p.W_ext * 1000 + 2 * site.get("toe", 0.0)
-    run_len = wext + (p.height + p.t_top + p.t_base) * 1000
-    lay = ec2.lap_layout(run_len, (lm or 50) * main, stock)
-    out.append(row("Bar lengths", "practice", "Longest transverse bar (developed)", f"{run_len:.0f} mm", f"<= stock {stock:.0f} mm, else lapped", True,
-                   "no lap needed" if lay["n_laps"] == 0 else f"{lay['n_laps']} lap(s) per bar, families staggered {lay['stagger']:.0f} mm"))
+    if site.get("schedule"):
+        from . import bars as bars_mod
+        for item, value, limit, ok, note in bars_mod.limits(site["schedule"], R.params["fyk"], stock):
+            out.append(row("Bars as supplied", "BS 4449 / BS 8666" if "lap centres" not in item else "8.7.2(3)", item, value, limit, ok, note))
+    else:
+        wext = p.W_ext * 1000 + 2 * site.get("toe", 0.0)
+        run_len = wext + (p.height + p.t_top + p.t_base) * 1000
+        lay = ec2.lap_layout(run_len, (lm or 50) * main, stock)
+        out.append(row("Bar lengths", "practice", "Longest transverse bar (developed)", f"{run_len:.0f} mm", f"<= stock {stock:.0f} mm, else lapped", True,
+                       "no lap needed" if lay["n_laps"] == 0 else f"{lay['n_laps']} lap(s) per bar, families staggered {lay['stagger']:.0f} mm"))
     # ---- free edges, corners
     if site.get("toe", 0) > 0:
         leg = max(2 * thick["base"], (site.get("anch_mult") or 40) * main)
@@ -88,10 +102,12 @@ def run(box, R, site=None, profile=None) -> list:
     # ---- skew
     sk = site.get("skew", 90.0)
     if abs(sk - 90.0) > 1e-6 and site.get("apron"):
-        e = skew_mod.wing_walls(site.get("inner_width", p.W_ext * 1000), site["apron"], site.get("flare", 30.0), sk)
-        okw = e.left["ok"] and e.right["ok"]
-        out.append(row("Skew", "geometry", f"Wing walls at {sk:g} deg skew", f"left {e.left['length']:.0f} / right {e.right['length']:.0f} mm", "both finite", okw,
-                       "lengths differ; each wall detailed for its own length" if okw else e.left.get("reason", "") or e.right.get("reason", "")))
+        g = skew_mod.layout(site.get("outer_width", p.W_ext * 1000), site.get("barrel_length", 10500.0), site["apron"], site.get("flare", 30.0), sk, site.get("pivot", "centre"))
+        ws = [g["ends"][e]["walls"][s] for e in ("inlet", "outlet") for s in ("left", "right")]
+        out.append(row("Skew", "geometry", f"Barrel at {sk:g} deg skew, pivot at the {g['pivot']}", f"walls {g['wall_length']:.0f} mm, end faces {g['end_face_length']:.0f} mm", "ends parallel to the road", True,
+                       "walls stretched by 1 / sin(skew); the cross-section normal to the axis is unchanged"))
+        out.append(row("Skew", "geometry", "Wing walls (inlet L / R, outlet L / R)", " / ".join(f"{w['length']:.0f}" for w in ws) + " mm", "every wall still flares outward", g["ok"],
+                       "ends stay on the apron edges; each wall detailed for its own length" if g["ok"] else next(w["reason"] for w in ws if not w["ok"])))
         se = skew_mod.slab_effects(p.span * 1000, sk)
         out.append(row("Skew", "analysis", "Slab end zones", f"skew span {se['skew_span']:.0f} mm", f"As x {se['As_factor_end_zone']:.2f} in the end zones", True, se["treatment"]))
     # ---- ground

@@ -40,6 +40,9 @@ SETUP_LAYERS = [("CBC_CONC", 3, 25), ("CBC_HID", 8, 18), ("CBC_CL", 6, 13), ("CB
                 ("CBC_REBAR_B", 1, 35), ("CBC_RTXT", 10, 18), ("CBC_THIN", 251, 13)]
 
 
+from detailing import bars, ec2
+
+
 def r10(x: float) -> float:
     """(cbc:r10 x) - round to the nearest 10 mm, AutoLISP fix() semantics."""
     return 10.0 * math.floor(0.5 + x / 10.0) if x >= 0 else 10.0 * math.ceil(x / 10.0 - 0.5)
@@ -100,6 +103,8 @@ class Drawing:
     hatches: list = field(default_factory=list) # (pts, pattern, layer)
     title: tuple | None = None                  # (p, text, scale)
     warnings: list = field(default_factory=list)
+    pieces: list = field(default_factory=list)  # every scheduled piece: mark, fam (A / B alternate bars), idx, pts, dia, split, alt, lap
+    laps: list = field(default_factory=list)    # laps of bars longer than the stock length: mark, fam, at (x, y), l0
 
     def bars(self, mark=None):
         return [p for p in self.pl if p[2] == "CBC_REBAR" and (mark is None or p[3] == mark)]
@@ -172,11 +177,40 @@ def build(P_in: dict) -> Drawing:
     MK = lambda m, k: (f"{m}/{m}a" if m in ("01", "02", "13") else m) + f"-T{num(BD(k))}-{num(BS(k))}"
     D = Drawing(sc=P["SC_RC"])
 
-    def bar(pts, mark, dia=None):
-        if _plen(pts) > P["BAR_STOCK"] + 0.5:
-            D.warnings.append(f"bar {mark}: developed length {_plen(pts):.0f} mm exceeds the "
-                              f"{P['BAR_STOCK']:.0f} mm stock length - lapped pieces not drawn yet")
-        D.pl.append((pts, False, "CBC_REBAR", mark, dia))
+    def bar(pts, mark, dia=None, face=None, inward=(0.0, 0.0), alt=False):
+        """One bar of the section.  face ('outer' / 'inner') marks a transverse slab bar: when its developed length
+        exceeds the stock length it is cut into lapping pieces, alternate bars (families A and B) lapping in different
+        low-stress zones at least 1.3 l0 apart.  alt: alternate bars are this bar mirrored (the U-bars)."""
+        d = dia or 12.0; sp = None; mirror = lambda q: [(-x, y) for x, y in q]
+        if face and _plen(pts) > P["BAR_STOCK"] + 0.5:
+            k = max(range(len(pts) - 1), key=lambda i: math.dist(pts[i], pts[i + 1]))        # the run across the slab
+            sa = _plen(pts[:k + 1]); x0 = pts[k][0]; sg = 1.0 if pts[k + 1][0] > x0 else -1.0; lo, hi = sorted((pts[k][0], pts[k + 1][0]))
+            l0 = P["LAP_MULT"] * d
+            prefer = [(sa + sg * (x - x0), hw) for x, hw in bars.zones(P, face) if lo + l0 < x < hi - l0]
+            sp = bars.split(pts, l0, P["BAR_STOCK"], prefer)
+        if sp is None:
+            if _plen(pts) > P["BAR_STOCK"] + 0.5:
+                D.warnings.append(f"bar {mark}: developed length {_plen(pts):.0f} mm exceeds the {P['BAR_STOCK']:.0f} mm stock length")
+            D.pl.append((pts, False, "CBC_REBAR", mark, dia))
+            D.pieces.append(dict(mark=mark, fam="A", idx=1, pts=pts, dia=d, split=False, alt=alt, lap=None))
+            if alt: D.pieces.append(dict(mark=mark, fam="B", idx=1, pts=mirror(pts), dia=d, split=False, alt=True, lap=None))
+            return
+        if not sp["ok"]: D.warnings.append(f"bar {mark}: laps could not be staggered by 1.3 l0")
+        info = dict(l0=sp["l0"], stagger=sp["stagger"], preferred=sp["preferred"])
+        for fam in "AB":
+            for i, (s0, s1) in enumerate(sp["pieces_" + fam]):
+                pp = bars.sub(pts, s0, s1)
+                D.pieces.append(dict(mark=mark, fam=fam, idx=i + 1, pts=pp, dia=d, split=True, alt=True, lap=info))
+                if fam == "A":                                   # drawn: successive pieces side by side so that the laps read
+                    off = d if i % 2 else 0.0
+                    yr = pts[k][1]                                 # only the run across the slab is shifted; legs and caps keep their cover
+                    D.pl.append(([(x, y + inward[1] * off) if abs(y - yr) < 1e-6 else (x, y) for x, y in pp], False, "CBC_REBAR", mark, dia))
+            for c in sp[fam]:
+                q = bars.sub(pts, c, c + 1.0)[0]; l0 = sp["l0"]; D.laps.append(dict(mark=mark, fam=fam, at=q, l0=l0))
+                h = 2.5 * d
+                for e in (-l0 / 2.0, l0 / 2.0):                  # ticks at the two ends of the lap
+                    D.lines.append(((q[0] + e, q[1] - h * 0.2 * inward[1]), (q[0] + e, q[1] + h * inward[1]), "CBC_RTXT"))
+                D.texts.append(((q[0], q[1] + inward[1] * (h + 35.0) - 16.0), 1.4, f"LAP {l0:.0f}" + ("" if fam == "A" else " (ALT. BARS)"), 1, 2, "CBC_RTXT"))
 
     # concrete outline + cells
     toe = float(P.get("TOE", 0) or 0); A = wt / 2.0 + toe
@@ -195,30 +229,61 @@ def build(P_in: dict) -> Drawing:
     d1 = BD("OUT"); co = cv + d1 / 2.0; a = wt / 2.0; lap = P["LAP_MULT"] * d1
     lgA = (htot - 2 * cv) / 2.0 + lap / 2.0
     stg = min(0.65 * lap, (htot - 2 * cv) / 2.0 - lap / 2.0 - 100.0)          # (cbc:stg)
+    LIM = bars.TRANSPORT - 50.0
+    if lgA <= LIM: stg = max(0.0, min(stg, LIM - lgA))                         # the longer leg must still travel bent
+    # Bent bars must travel: a U-bar whose legs exceed the transport width (BS 8666, 2750 mm) is made with short legs,
+    # and a separate straight bar (mark 11) in the wall laps with the top and the base legs.  Alternate bars have the
+    # long and the short leg swapped, so the laps of neighbouring bars are 1.3 l0 apart.
+    tall = lgA > LIM
+    if tall:
+        LS = lap + 150.0; LL = LS + 1.3 * lap
+        if LL > bars.TRANSPORT - 50.0 or LS + LL > htot - 2 * co - 2 * lap: LL = LS            # no room to stagger: P["LAP_MULT"] is then the 100 % lap
+        tl, tr, bl_, br = LL, LS, LS, LL                                                    # legs: top left / right, base left / right
+    else:
+        tl, tr, bl_, br = lgA + stg, lgA - stg, lgA - stg, lgA + stg
+    xb = a - co if tall else a - co - d1                                                    # base legs: in line with the top legs when a wall bar joins them
     # 01 top U-bar
-    bar([(-a + co, hw - co - lgA - stg), (-a + co, hw - co), (a - co, hw - co), (a - co, hw - co - (lgA - stg))], "01", d1)
+    bar([(-a + co, hw - co - tl), (-a + co, hw - co), (a - co, hw - co), (a - co, hw - co - tr)], "01", d1, "outer", (0.0, -1.0), alt=True)
     if toe <= 0:
         # 02 base U-bar (legs inside 01)
-        bar([(-a + co + d1, -tb + co + (lgA - stg)), (-a + co + d1, -tb + co), (a - co - d1, -tb + co),
-             (a - co - d1, -tb + co + lgA + stg)], "02", d1)
+        bar([(-xb, -tb + co + bl_), (-xb, -tb + co), (xb, -tb + co), (xb, -tb + co + br)], "02", d1, "outer", (0.0, 1.0), alt=True)
     else:
         # with a toe the bottom bars run through to the toe edges and are capped there (free edge, 9.3.1.4);
         # the outer wall bars start from L-shaped starters anchored in the base (mark 21), lapped with 01 as before
         anch = P["ANCH_MULT"] * d1
         cap = P.get("FREE_EDGE_LEG") or max(2.0 * tb, anch)
         cap = min(cap, A - co - 50.0)
-        bar([(-A + co + cap, -co), (-A + co, -co), (-A + co, -tb + co), (A - co, -tb + co), (A - co, -co), (A - co - cap, -co)], "02", d1)
+        web = tb - 2 * co                                                 # back of the hairpin at the toe edge
+        if web >= 2.0 * (ec2.bs8666_former_radius(d1) + d1):
+            bar([(-A + co + cap, -co), (-A + co, -co), (-A + co, -tb + co), (A - co, -tb + co), (A - co, -co), (A - co - cap, -co)], "02", d1, "outer", (0.0, 1.0))
+        else:
+            # the main bar cannot be bent that tight: it stops straight at the toe edges and a separate U-cap of a
+            # smaller bar (mark 12) closes the free edge, lapping with the top and the bottom steel
+            bar([(-A + co, -tb + co), (A - co, -tb + co)], "02", d1, "outer", (0.0, 1.0))
+            fits = [dc for dc in bars.SIZES if dc <= d1 and tb - 2 * cv - d1 - dc >= 2.0 * (ec2.bs8666_former_radius(dc) + dc)]
+            dc = max(fits) if fits else bars.SIZES[0]
+            if not fits: D.warnings.append(f"toe edge: the base slab is too thin for a U-cap of any bar size")
+            lc = min(max(P["LAP_MULT"] * dc, 2.0 * tb), A - cv - 100.0); xc = A - cv - dc / 2.0; yt = -cv - dc / 2.0; yb = -tb + co + d1 / 2.0 + dc / 2.0
+            for sg in (-1, 1):
+                bar([(sg * (xc - lc), yt), (sg * xc, yt), (sg * xc, yb), (sg * (xc - lc), yb)], "12", dc)
+            D.leaders.append(((A - cv - lc * 0.5, yt), (a * 0.9, -(tb + 380)), f"12-T{num(dc)}-{num(BS('OUT'))} U-CAP", "CBC_RTXT"))
+            P["CAP_S"] = BS("OUT")
         y0 = -tb + co + d1
-        for sg, top in ((-1, -tb + co + (lgA - stg)), (1, -tb + co + lgA + stg)):
-            x = sg * (a - co - d1)
+        for sg, top in ((-1, -tb + co + bl_), (1, -tb + co + br)):
+            x = sg * (a - co - d1) if not tall else sg * (a - co)
             bar([(x - sg * anch, y0), (x, y0), (x, top)], "21", d1)
+    if tall:
+        for sg, top_leg, bot_leg in ((-1, tl, bl_), (1, tr, br)):
+            x = sg * (a - co - d1)
+            bar([(x, -tb + co + bot_leg - lap), (x, hw - co - top_leg + lap)], "11", d1, alt=True)
+        D.leaders.append(((a - co - d1, hw * 0.5), (a * 0.82, shh * 0.5), f"11/11a-T{num(d1)}-{num(BS('OUT'))} WALL BAR, LAPPED TOP AND BOTTOM", "CBC_RTXT"))
     c3, c4, d5, dd = BD("TOPIN"), BD("BOTIN"), BD("WALLIN"), BD("DIST")
     # 03 top slab bottom face, legs bent down into the outer walls
     y = shh + cv + c3 / 2.0; u = leg(P, c3, tw)
-    bar([(-a + co + d1, y - u), (-a + co + d1, y), (a - co - d1, y), (a - co - d1, y - u)], "03", c3)
+    bar([(-a + co + d1, y - u), (-a + co + d1, y), (a - co - d1, y), (a - co - d1, y - u)], "03", c3, "inner", (0.0, 1.0))
     # 04 base slab top face, legs bent up
     y = -(cv + c4 / 2.0); u = leg(P, c4, tw)
-    bar([(-a + co + d1, y + u), (-a + co + d1, y), (a - co - d1, y), (a - co - d1, y + u)], "04", c4)
+    bar([(-a + co + d1, y + u), (-a + co + d1, y), (a - co - d1, y), (a - co - d1, y + u)], "04", c4, "inner", (0.0, -1.0))
     # 05 outer wall inner face
     for sg in (-1, 1):
         x0 = sg * (wc / 2.0 + cv + d5 / 2.0); u = -sg * leg(P, d5, min(tt, tb))
@@ -276,13 +341,18 @@ def build(P_in: dict) -> Drawing:
     if nc > 1:
         L(((-wc / 2.0 + sw + cv, shh * 0.45), (a * -0.1, shh * 0.45), MK("06", "PIER"), "CBC_RTXT"))
     # lap dimensions of the U-bars in the outer walls, C.J., LAP note
-    D.dims.append(("v", htot / 2.0 - lap / 2.0 - tb - stg, htot / 2.0 + lap / 2.0 - tb - stg, -a, -(a + 350), None))
-    D.dims.append(("v", htot / 2.0 - lap / 2.0 - tb + stg, htot / 2.0 + lap / 2.0 - tb + stg, a, a + 900, None))
+    if tall:
+        for sg, top_leg, bot_leg, off in ((-1, tl, bl_, 350), (1, tr, br, 900)):
+            D.dims.append(("v", hw - co - top_leg, hw - co - top_leg + lap, sg * a, sg * (a + off), None))
+            D.dims.append(("v", -tb + co + bot_leg - lap, -tb + co + bot_leg, sg * a, sg * (a + off), None))
+    else:
+        D.dims.append(("v", htot / 2.0 - lap / 2.0 - tb - stg, htot / 2.0 + lap / 2.0 - tb - stg, -a, -(a + 350), None))
+        D.dims.append(("v", htot / 2.0 - lap / 2.0 - tb + stg, htot / 2.0 + lap / 2.0 - tb + stg, a, a + 900, None))
     cjy = (hh if hh > 0 else 0.0) + 150.0                                      # (cbc:cjy)
     for sg in (-1, 1):
         D.lines.append(((sg * wc / 2.0, cjy), (sg * a, cjy), "CBC_THIN"))
     D.texts.append(((a + 60, cjy), 1.6, "C.J.", 0, 2, "CBC_TEXT"))
-    D.texts.append(((-(a + 750), htot / 2.0 - tb - stg), 1.8, "LAP", 2, 2, "CBC_RTXT"))
+    D.texts.append(((-(a + 750), (hw - co - tl + lap / 2.0) if tall else (htot / 2.0 - tb - stg)), 1.8, "LAP", 2, 2, "CBC_RTXT"))
     # overall dimensions
     xs = [-a, -wc / 2.0, wc / 2.0, a]
     for p, q2 in zip(xs, xs[1:]):
@@ -361,10 +431,10 @@ def to_dxf(D: Drawing, path: str, origin=(200.0, 150.0)):
 # --------------------------------------------------------------------------- matplotlib renderer
 # colours of the bar marks on screen (the DXF keeps every bar on the red rebar layer, as on the drawings)
 MARK_COLOURS = {"01": "#ff3b30", "02": "#ff9500", "03": "#ffd60a", "04": "#34c759", "05": "#00c7be", "06": "#32ade6",
-                "07": "#bf5af2", "08": "#ff2d92", "21": "#a2845e", "22": "#ffffff"}
+                "07": "#bf5af2", "08": "#ff2d92", "21": "#a2845e", "22": "#ffffff", "11": "#8fd14f", "12": "#f2a65a"}
 MARK_NAMES = {"01": "top U-bar", "02": "base bottom bar", "03": "top slab, inner face", "04": "base slab, inner face",
               "05": "outer wall, inner face", "06": "pier wall", "07": "haunch bar", "08": "distribution (dots)",
-              "21": "outer wall starter", "22": "shear link"}
+              "21": "outer wall starter", "22": "shear link", "11": "outer wall bar (lapped)", "12": "toe edge U-cap"}
 
 
 def to_mpl(D: Drawing, ax, dark=True, window=None, annotate=True, by_mark=False, fill=True, min_bar_pt=0.9, legend=False, title=None):

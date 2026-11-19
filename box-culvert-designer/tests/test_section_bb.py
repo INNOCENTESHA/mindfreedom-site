@@ -38,10 +38,10 @@ def test_formula_values():
     assert not D.warnings
 
 
-def test_twelve_metre_warning():
-    D = build({"N_CELLS": 8})                       # 14.25 m wide: U-bars exceed the 12 m stock length
-    assert any("stock length" in w for w in D.warnings)
-
+def test_twelve_metre_bars_are_lapped():
+    D = build({"N_CELLS": 8})                       # 14.25 m wide: the U-bars would exceed the 12 m stock length
+    assert not D.warnings and D.laps
+    assert all(sum(((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2) ** 0.5 for a, b in zip(p["pts"], p["pts"][1:])) <= 12000 for p in D.pieces)
 
 def test_dxf_is_valid(tmp_path=None):
     import ezdxf, tempfile
