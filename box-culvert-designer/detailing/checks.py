@@ -102,12 +102,12 @@ def run(box, R, site=None, profile=None) -> list:
     # ---- skew
     sk = site.get("skew", 90.0)
     if abs(sk - 90.0) > 1e-6 and site.get("apron"):
-        g = skew_mod.layout(site.get("outer_width", p.W_ext * 1000), site.get("barrel_length", 10500.0), site["apron"], site.get("flare", 30.0), sk, site.get("pivot", "centre"))
+        g = skew_mod.layout(site.get("outer_width", p.W_ext * 1000), site.get("barrel_length", 10500.0), site["apron"], site.get("flare", 30.0), sk)
         ws = [g["ends"][e]["walls"][s] for e in ("inlet", "outlet") for s in ("left", "right")]
-        out.append(row("Skew", "geometry", f"Barrel at {sk:g} deg skew, pivot at the {g['pivot']}", f"walls {g['wall_length']:.0f} mm, end faces {g['end_face_length']:.0f} mm", "ends parallel to the road", True,
+        out.append(row("Skew", "geometry", f"Barrel at {sk:g} deg skew", f"walls {g['wall_length']:.0f} mm, end faces {g['end_face_length']:.0f} mm", "ends parallel to the road", True,
                        "walls stretched by 1 / sin(skew); the cross-section normal to the axis is unchanged"))
-        out.append(row("Skew", "geometry", "Wing walls (inlet L / R, outlet L / R)", " / ".join(f"{w['length']:.0f}" for w in ws) + " mm", "every wall still flares outward", g["ok"],
-                       "ends stay on the apron edges; each wall detailed for its own length" if g["ok"] else next(w["reason"] for w in ws if not w["ok"])))
+        out.append(row("Skew", "geometry", "Wing walls (inlet L / R, outlet L / R)", " / ".join(f"{w['length']:.0f}" if w["ok"] else "-" for w in ws) + " mm", "every wall still flares outward", g["ok"],
+                       "flared from the culvert axis to the apron end; each wall detailed for its own length" if g["ok"] else next(w["reason"] for w in ws if not w["ok"])))
         se = skew_mod.slab_effects(p.span * 1000, sk)
         out.append(row("Skew", "analysis", "Slab end zones", f"skew span {se['skew_span']:.0f} mm", f"As x {se['As_factor_end_zone']:.2f} in the end zones", True, se["treatment"]))
     # ---- ground

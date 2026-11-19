@@ -8,8 +8,8 @@ No bar in the schedule may exceed what a mill and a bending shop supply:
   * bent shape fits a 2750 mm wide lorry load (BS 8666: the shorter side of the enclosing rectangle).
 
 A run longer than the stock length is cut into pieces that lap.  Alternate bars form two families (A, B) whose
-lap centres are at least 1.3 l0 apart, so that not more than half of the bars lap at any section (8.7.2(3)); laps are
-put where the bar is least stressed (see `zones`).
+lap centres are at least 1.3 l0 apart, so that not more than half of the bars lap at any section (8.7.2(3)).  Top bars
+are lapped at mid-span only and bottom bars over the supports only (see `zones`).
 """
 from __future__ import annotations
 import math
@@ -77,16 +77,20 @@ def enclosing(pts) -> tuple:
 
 
 # ------------------------------------------------------------------ laps in a long run
-def zones(P: dict, face: str) -> list:
-    """Stations x (across the section, 0 = centre line) where a lap of a transverse slab bar is least stressed, with the
-    half-width available.  Outer faces (top of top slab, bottom of base) are in tension at the walls and piers, so
-    laps go at mid-span of the cells; inner faces are in tension at mid-span, so laps go over the piers."""
+def zones(P: dict, layer: str) -> list:
+    """Stations x (across the section, 0 = centre line) where a transverse slab bar may be lapped, with the half-width
+    available.  The rule is by position, for both slabs:
+      * top reinforcement is never lapped at or near a support: its laps go at mid-span of the cells;
+      * bottom reinforcement is never lapped at or near mid-span: its laps go over the piers."""
     nc = int(round(P["N_CELLS"])); sw, ti, wc = P["SPAN_W"], P["T_INWALL"], P["W_CLEAR"]; out = []
-    if face == "outer":
-        for j in range(nc): out.append((-wc / 2.0 + j * (sw + ti) + sw / 2.0, 0.22 * sw))
+    if layer == "top":
+        for j in range(nc): out.append((-wc / 2.0 + j * (sw + ti) + sw / 2.0, 0.25 * sw))            # clear of the quarter span next to each support
     else:
-        for j in range(1, nc): out.append((-wc / 2.0 + j * sw + (j - 1) * ti + ti / 2.0, ti / 2.0 + 0.18 * sw))
+        for j in range(1, nc): out.append((-wc / 2.0 + j * sw + (j - 1) * ti + ti / 2.0, ti / 2.0 + 0.30 * sw))   # clear of the middle 40 % of each span
     return out
+
+
+LAYER = {"01": "top", "02": "bottom", "03": "bottom", "04": "top"}      # top slab top / base bottom / top slab bottom / base top
 
 
 def split(pts, l0: float, stock: float = STOCK, prefer=None, min_piece: float = 0.0):
@@ -123,18 +127,20 @@ def split(pts, l0: float, stock: float = STOCK, prefer=None, min_piece: float = 
         nmin = min(len(r) for r in res)
         return [r for r in res if len(r) <= nmin + 1]            # one more lap is allowed if that is what staggering takes
 
-    def best_pair(cs):
+    def best_pair(cs, staggered=True):
         fam = families(cs); best = None
         for a in fam:
             for b in fam:
                 d = min((abs(x - y) for x in a for y in b), default=1e18)
-                if d < stag - 1e-6: continue
+                if staggered and d < stag - 1e-6: continue
                 key = (-(len(a) + len(b)), d)                           # fewest laps first, then the widest stagger
                 if best is None or key > best[0]: best = (key, a, b)
         return None if best is None else (best[0][1], best[1], best[2])
 
-    pair = best_pair(cands) if cands else None; preferred = pair is not None
-    if pair is None:                                              # no pair of low-stress zones far enough apart: regular cuts
+    pair = best_pair(cands) if cands else None
+    if pair is None and cands: pair = best_pair(cands, staggered=False)   # permitted positions only, even if all bars then lap at one section
+    preferred = pair is not None
+    if pair is None:                                              # no permitted position reaches within the stock length: regular cuts, flagged
         lay = ec2.lap_layout(run, l0, stock)
         pair = (lay["stagger"] or 0.0, tuple(lay["A"]["centres"]), tuple(lay["B"]["centres"]))
 
@@ -241,7 +247,12 @@ def limits(rows: list, fyk: float, stock: float = STOCK) -> list:
         if r.get("lap") and r["lap"].get("stagger") is not None and r["mark"].split(".")[0] in ("01", "02", "03", "04", "08"):
             lp = r["lap"]
             out.append((f"Mark {r['base']}: lap centres of alternate bars", f"{lp['stagger']:.0f} mm apart, lap {lp['l0']:.0f} mm", f">= 1.3 l0 = {1.3 * lp['l0']:.0f} mm", lp["stagger"] >= 1.3 * lp["l0"] - 1e-6,
-                        "8.7.2(3): not more than 50 % of the bars lapped at one section" + ("" if lp.get("preferred", True) else "; laps could not all be placed in the low-stress zones")))
+                        "8.7.2(3): not more than 50 % of the bars lapped at one section"))
+            if r["base"] in LAYER:
+                top = LAYER[r["base"]] == "top"
+                out.append((f"Mark {r['base']}: position of the laps ({'top' if top else 'bottom'} bar)", "at mid-span of the cells" if top else "over the piers",
+                            "top bars not lapped at or near a support" if top else "bottom bars not lapped at or near mid-span", bool(lp.get("preferred", True)),
+                            "" if lp.get("preferred", True) else "no permitted position within the stock length: change the cell width or the bar arrangement"))
     return out
 
 

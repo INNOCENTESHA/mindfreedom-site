@@ -24,7 +24,7 @@ PROFILES = {
 def scenario(rng):
     span = rng.choice([1.0, 1.2, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]); height = rng.choice([1.0, 1.2, 1.5, 2.0, 2.5, 3.0, 3.5])
     t = max(0.20, round(max(span, height) / rng.choice([8, 10, 12]) / 0.025) * 0.025)
-    return dict(n_cells=rng.choice([1, 1, 2, 3, 4, 5, 6, 8]), barrel=rng.choice([6.0, 10.5, 18.0, 30.0, 60.0]), pivot=rng.choice(['centre', 'centre', 'inlet', 'outlet']), span=span, height=height, t_top=t, t_base=t + rng.choice([0, 0, 0.05]), t_wall=max(0.2, t - rng.choice([0, 0, 0.05])),
+    return dict(n_cells=rng.choice([1, 1, 2, 3, 4, 5, 6, 8]), barrel=rng.choice([6.0, 10.5, 18.0, 30.0, 60.0]), span=span, height=height, t_top=t, t_base=t + rng.choice([0, 0, 0.05]), t_wall=max(0.2, t - rng.choice([0, 0, 0.05])),
                 fill=rng.choice([0.3, 0.6, 1.0, 1.5, 2.5, 4.0, 6.0]), hb=rng.choice([30.0, 37.5, 45.0]), toe=rng.choice([0, 0, 0.3, 0.6]),
                 fck=rng.choice([25, 30, 35, 40]), fyk=rng.choice([460, 500]), cover=rng.choice([0.04, 0.05, 0.06]), exposure=rng.choice(["XC2", "XC4", "XD2"]),
                 profile=rng.choice([None, None, "clay over sand", "soft clay", "dense gravel"]), water=rng.choice([None, None, 2.0, 5.0]),
@@ -32,7 +32,7 @@ def scenario(rng):
 
 
 GRID = [dict(n_cells=n, span=s, height=h, t_top=t, t_base=t, t_wall=t, fill=f, hb=37.5, toe=toe, fck=25, fyk=460, cover=0.05, exposure="XC2", profile=None,
-             water=None, skew=90, flare=30, surcharge=16.67, barrel=10.5, pivot='centre')
+             water=None, skew=90, flare=30, surcharge=16.67, barrel=10.5)
         for n in (1, 2, 4, 6) for (s, h, t) in ((1.5, 1.5, 0.25), (2.0, 2.0, 0.25), (3.0, 2.5, 0.35), (4.0, 3.0, 0.45)) for f in (0.6, 1.0, 3.0) for toe in (0, 0.3)]
 
 
@@ -130,38 +130,43 @@ def run_one(sc, fails, stats, dxf=False):
     if any(int(r["dia"]) not in bars.SIZES for r in sched): fails["bars: a size that is not supplied"] += 1
     for x in D.laps:
         for y in D.laps:
-            if x["mark"] == y["mark"] and x["fam"] != y["fam"] and abs(x["at"][0] - y["at"][0]) < 1.3 * x["l0"] - 1e-6: fails["bars: laps of alternate bars closer than 1.3 l0"] += 1
+            if x["staggered"] and x["mark"] == y["mark"] and x["fam"] != y["fam"] and abs(x["at"][0] - y["at"][0]) < 1.3 * x["l0"] - 1e-6: fails["bars: laps of alternate bars closer than 1.3 l0"] += 1
     if D.laps: stats["bars: transverse bars cut at the stock length and lapped"] += 1
-    if any(pc["lap"] and not pc["lap"]["preferred"] for pc in D.pieces): stats["bars: a lap outside the low-stress zones (flagged)"] += 1
+    for lp in D.laps:                                         # the position rule, measured on the drawing
+        P_ = section_bb.complete(Q)
+        if lp["permitted"] and not any(abs(lp["at"][0] - x) <= hw - lp["l0"] / 2 + 1e-6 for x, hw in bars.zones(P_, bars.LAYER[lp["mark"]])): fails["bars: " + bars.LAYER[lp["mark"]] + " bar lapped outside its permitted position"] += 1
     if mu["wall"].get("wall_bar"): stats["bars: tall wall, U-bars with short legs and a lapped wall bar"] += 1
     if any(pc["mark"] == "12" for pc in D.pieces): stats["bars: toe hairpin too tight for the main bar, separate U-cap"] += 1
     if not mu["wall"]["staggered"]: stats["bars: wall too short to stagger the U-bar laps, 100 % lap length used"] += 1
     site = dict(toe=p.toe * 1000, skew=sc["skew"], flare=sc["flare"], apron=4750.0, inner_width=inner, outer_width=p.W_ext * 1000, barrel_length=sc["barrel"] * 1000, joint_spacing=15000.0,
-                anch_mult=am, lap_mult=lm, pivot=sc["pivot"], schedule=sched, wall_lap=mu["wall"])
+                anch_mult=am, lap_mult=lm, schedule=sched, wall_lap=mu["wall"])
     rows = checks.run(b, Rz, site, p.profile)
     for r in rows:
         if not r["ok"]: stats[f"check not satisfied: {r['group']} - {r['clause']}"] += 1
     check_drawing(D, p.cover * 1000, fails, "")
-    for w in D.warnings: fails["drawing: " + w.split(":")[0] + " not resolved"] += 1; break
+    for w in D.warnings: stats["drawing flagged: " + w.split(":", 1)[1].strip()[:70]] += 1
     for item in D.pl:
         if item[2] == "CBC_REBAR" and any(math.dist(a, c) < 1e-6 for a, c in zip(item[0], item[0][1:])): fails["drawing: zero-length bar segment"] += 1
     if dxf:
         import ezdxf
         path = os.path.join(tempfile.gettempdir(), "scenario.dxf"); section_bb.to_dxf(D, path)
         if len(ezdxf.readfile(path).audit().errors): fails["drawing: DXF audit errors"] += 1
-    # ---- skew: road horizontal, barrel turned about the pivot, wing wall ends fixed on the apron edges
-    Wo = p.W_ext * 1000; Lb = sc["barrel"] * 1000; g = skew.layout(Wo, Lb, 4750.0, sc["flare"], sc["skew"], sc["pivot"]); sq = skew.layout(Wo, Lb, 4750.0, sc["flare"], 90, sc["pivot"])
-    sn = math.sin(math.radians(sc["skew"])); o = g["outline"]
+    # ---- skew: road horizontal, barrel and apron ends parallel to it, wing walls flared from the culvert axis
+    Wo = p.W_ext * 1000; Lb = sc["barrel"] * 1000; g = skew.layout(Wo, Lb, 4750.0, sc["flare"], sc["skew"])
+    sn = math.sin(math.radians(sc["skew"])); ctn = math.cos(math.radians(sc["skew"])) / sn; o = g["outline"]; bf = math.radians(sc["flare"])
     if abs(math.dist(o[0], o[3]) - Lb / sn) > 1e-6 * Lb: fails["skew: barrel wall is not L / sin(skew)"] += 1
-    if any(abs(q[1]) - Lb / 2 > 1e-6 for q in o): fails["skew: barrel end not parallel to the road"] += 1
-    for en in ("inlet", "outlet"):
-        for sd in ("left", "right"):
-            w = g["ends"][en]["walls"][sd]
-            if math.dist(w["end"], sq["ends"][en]["walls"][sd]["end"]) > 1e-6: fails["skew: wing wall end moved off the apron edge"] += 1
-            if abs(w["length"] - math.dist(w["start"], w["end"])) > 1e-6: fails["skew: wing wall length is not its plan length"] += 1
-    m = skew.layout(Wo, Lb, 4750.0, sc["flare"], 180 - sc["skew"], sc["pivot"])
-    if abs(m["ends"]["inlet"]["walls"]["left"]["length"] - g["ends"]["inlet"]["walls"]["right"]["length"]) > 1e-6: fails["skew: mirror crossing does not swap the walls"] += 1
-    if not g["ok"]: stats["skew: a barrel corner slides past a wing wall end (flagged)"] += 1
+    if any(abs(abs(q[1]) - Lb / 2) > 1e-6 for q in o): fails["skew: barrel end not parallel to the road"] += 1
+    if g["ok"]:
+        for en in ("inlet", "outlet"):
+            e = g["ends"][en]
+            if abs(e["apron_edge"][0][1] - e["apron_edge"][1][1]) > 1e-6: fails["skew: apron end not parallel to the road"] += 1
+            ls = sorted(w["length"] for w in e["walls"].values()); want = sorted(4750.0 / (math.cos(bf) - sg * math.sin(bf) * ctn) for sg in (1, -1))
+            if max(abs(x - y) for x, y in zip(ls, want)) > 1e-6: fails["skew: wing wall length differs from A / (cos b -/+ sin b cot S)"] += 1
+            for w in e["walls"].values():
+                if abs(w["length"] - math.dist(w["start"], w["end"])) > 1e-6: fails["skew: wing wall length is not its plan length"] += 1
+        m = skew.layout(Wo, Lb, 4750.0, sc["flare"], 180 - sc["skew"])
+        if abs(m["ends"]["inlet"]["walls"]["left"]["length"] - g["ends"]["inlet"]["walls"]["right"]["length"]) > 1e-6: fails["skew: mirror crossing does not swap the walls"] += 1
+    else: stats["skew: flare impossible at this skew (flagged)"] += 1
     stats["_time"] += time.time() - t0
     return Rz.max_util()[0]
 

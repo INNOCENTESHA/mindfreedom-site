@@ -178,9 +178,9 @@ def build(P_in: dict) -> Drawing:
     D = Drawing(sc=P["SC_RC"])
 
     def bar(pts, mark, dia=None, face=None, inward=(0.0, 0.0), alt=False):
-        """One bar of the section.  face ('outer' / 'inner') marks a transverse slab bar: when its developed length
-        exceeds the stock length it is cut into lapping pieces, alternate bars (families A and B) lapping in different
-        low-stress zones at least 1.3 l0 apart.  alt: alternate bars are this bar mirrored (the U-bars)."""
+        """One bar of the section.  face ('top' / 'bottom' layer of its slab) marks a transverse slab bar: when its
+        developed length exceeds the stock length it is cut into lapping pieces, alternate bars (families A and B)
+        lapping at least 1.3 l0 apart - top bars at mid-span only, bottom bars over the piers only.  alt: alternate bars are this bar mirrored (the U-bars)."""
         d = dia or 12.0; sp = None; mirror = lambda q: [(-x, y) for x, y in q]
         if face and _plen(pts) > P["BAR_STOCK"] + 0.5:
             k = max(range(len(pts) - 1), key=lambda i: math.dist(pts[i], pts[i + 1]))        # the run across the slab
@@ -195,8 +195,9 @@ def build(P_in: dict) -> Drawing:
             D.pieces.append(dict(mark=mark, fam="A", idx=1, pts=pts, dia=d, split=False, alt=alt, lap=None))
             if alt: D.pieces.append(dict(mark=mark, fam="B", idx=1, pts=mirror(pts), dia=d, split=False, alt=True, lap=None))
             return
-        if not sp["ok"]: D.warnings.append(f"bar {mark}: laps could not be staggered by 1.3 l0")
-        info = dict(l0=sp["l0"], stagger=sp["stagger"], preferred=sp["preferred"])
+        if not sp["ok"]: D.warnings.append(f"bar {mark}: alternate bars lap at one section (no room to stagger in the permitted position) - use the 100 % lap length")
+        if not sp["preferred"]: D.warnings.append(f"bar {mark}: no permitted lap position ({face} bar) within the stock length")
+        info = dict(l0=sp["l0"], stagger=sp["stagger"], preferred=sp["preferred"], ok=sp["ok"])
         for fam in "AB":
             for i, (s0, s1) in enumerate(sp["pieces_" + fam]):
                 pp = bars.sub(pts, s0, s1)
@@ -206,7 +207,7 @@ def build(P_in: dict) -> Drawing:
                     yr = pts[k][1]                                 # only the run across the slab is shifted; legs and caps keep their cover
                     D.pl.append(([(x, y + inward[1] * off) if abs(y - yr) < 1e-6 else (x, y) for x, y in pp], False, "CBC_REBAR", mark, dia))
             for c in sp[fam]:
-                q = bars.sub(pts, c, c + 1.0)[0]; l0 = sp["l0"]; D.laps.append(dict(mark=mark, fam=fam, at=q, l0=l0))
+                q = bars.sub(pts, c, c + 1.0)[0]; l0 = sp["l0"]; D.laps.append(dict(mark=mark, fam=fam, at=q, l0=l0, staggered=sp["ok"], permitted=sp["preferred"]))
                 h = 2.5 * d
                 for e in (-l0 / 2.0, l0 / 2.0):                  # ticks at the two ends of the lap
                     D.lines.append(((q[0] + e, q[1] - h * 0.2 * inward[1]), (q[0] + e, q[1] + h * inward[1]), "CBC_RTXT"))
@@ -243,10 +244,10 @@ def build(P_in: dict) -> Drawing:
         tl, tr, bl_, br = lgA + stg, lgA - stg, lgA - stg, lgA + stg
     xb = a - co if tall else a - co - d1                                                    # base legs: in line with the top legs when a wall bar joins them
     # 01 top U-bar
-    bar([(-a + co, hw - co - tl), (-a + co, hw - co), (a - co, hw - co), (a - co, hw - co - tr)], "01", d1, "outer", (0.0, -1.0), alt=True)
+    bar([(-a + co, hw - co - tl), (-a + co, hw - co), (a - co, hw - co), (a - co, hw - co - tr)], "01", d1, "top", (0.0, -1.0), alt=True)
     if toe <= 0:
         # 02 base U-bar (legs inside 01)
-        bar([(-xb, -tb + co + bl_), (-xb, -tb + co), (xb, -tb + co), (xb, -tb + co + br)], "02", d1, "outer", (0.0, 1.0), alt=True)
+        bar([(-xb, -tb + co + bl_), (-xb, -tb + co), (xb, -tb + co), (xb, -tb + co + br)], "02", d1, "bottom", (0.0, 1.0), alt=True)
     else:
         # with a toe the bottom bars run through to the toe edges and are capped there (free edge, 9.3.1.4);
         # the outer wall bars start from L-shaped starters anchored in the base (mark 21), lapped with 01 as before
@@ -255,11 +256,11 @@ def build(P_in: dict) -> Drawing:
         cap = min(cap, A - co - 50.0)
         web = tb - 2 * co                                                 # back of the hairpin at the toe edge
         if web >= 2.0 * (ec2.bs8666_former_radius(d1) + d1):
-            bar([(-A + co + cap, -co), (-A + co, -co), (-A + co, -tb + co), (A - co, -tb + co), (A - co, -co), (A - co - cap, -co)], "02", d1, "outer", (0.0, 1.0))
+            bar([(-A + co + cap, -co), (-A + co, -co), (-A + co, -tb + co), (A - co, -tb + co), (A - co, -co), (A - co - cap, -co)], "02", d1, "bottom", (0.0, 1.0))
         else:
             # the main bar cannot be bent that tight: it stops straight at the toe edges and a separate U-cap of a
             # smaller bar (mark 12) closes the free edge, lapping with the top and the bottom steel
-            bar([(-A + co, -tb + co), (A - co, -tb + co)], "02", d1, "outer", (0.0, 1.0))
+            bar([(-A + co, -tb + co), (A - co, -tb + co)], "02", d1, "bottom", (0.0, 1.0))
             fits = [dc for dc in bars.SIZES if dc <= d1 and tb - 2 * cv - d1 - dc >= 2.0 * (ec2.bs8666_former_radius(dc) + dc)]
             dc = max(fits) if fits else bars.SIZES[0]
             if not fits: D.warnings.append(f"toe edge: the base slab is too thin for a U-cap of any bar size")
@@ -280,10 +281,10 @@ def build(P_in: dict) -> Drawing:
     c3, c4, d5, dd = BD("TOPIN"), BD("BOTIN"), BD("WALLIN"), BD("DIST")
     # 03 top slab bottom face, legs bent down into the outer walls
     y = shh + cv + c3 / 2.0; u = leg(P, c3, tw)
-    bar([(-a + co + d1, y - u), (-a + co + d1, y), (a - co - d1, y), (a - co - d1, y - u)], "03", c3, "inner", (0.0, 1.0))
+    bar([(-a + co + d1, y - u), (-a + co + d1, y), (a - co - d1, y), (a - co - d1, y - u)], "03", c3, "bottom", (0.0, 1.0))
     # 04 base slab top face, legs bent up
     y = -(cv + c4 / 2.0); u = leg(P, c4, tw)
-    bar([(-a + co + d1, y + u), (-a + co + d1, y), (a - co - d1, y), (a - co - d1, y + u)], "04", c4, "inner", (0.0, -1.0))
+    bar([(-a + co + d1, y + u), (-a + co + d1, y), (a - co - d1, y), (a - co - d1, y + u)], "04", c4, "top", (0.0, -1.0))
     # 05 outer wall inner face
     for sg in (-1, 1):
         x0 = sg * (wc / 2.0 + cv + d5 / 2.0); u = -sg * leg(P, d5, min(tt, tb))

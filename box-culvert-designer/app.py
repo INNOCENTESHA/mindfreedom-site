@@ -166,8 +166,7 @@ class Main(W.QMainWindow):
         self.i_barrel=spin(10.5,2.0,120.0,0.5,2); self.i_apron=spin(4.75,0.0,15.0,0.25,2); self.i_joint=spin(15.0,5.0,40.0,1.0,1)
         self.i_expo=W.QComboBox(); self.i_expo.addItems(["XC2","XC3","XC4","XD1","XD2","XS1","XS2","XC1"]); self.i_expo.setFixedHeight(26)
         self.i_wk=spin(0.30,0.10,0.40,0.05,2)
-        self.i_pivot=W.QComboBox(); self.i_pivot.addItems(["centre","inlet","outlet"]); self.i_pivot.setFixedHeight(26)
-        for lab,wdg in [("Toe, walls + wing walls (mm)",self.i_toe),("Skew of axis to road (°)",self.i_skew),("Skew pivot",self.i_pivot),("Wing wall flare (°)",self.i_flare),
+        for lab,wdg in [("Toe, walls + wing walls (mm)",self.i_toe),("Skew of axis to road (°)",self.i_skew),("Wing wall flare (°)",self.i_flare),
             ("Barrel length (m)",self.i_barrel),("Apron length (m)",self.i_apron),("Max joint spacing (m)",self.i_joint),
             ("Exposure class",self.i_expo),("Crack width limit (mm)",self.i_wk)]:
             sl.addRow(lab,wdg)
@@ -279,7 +278,7 @@ class Main(W.QMainWindow):
         p=self.p
         return dict(toe=self.i_toe.value(),skew=self.i_skew.value(),flare=self.i_flare.value(),apron=self.i_apron.value()*1000.0,
                     inner_width=(p.n_cells*p.span+(p.n_cells-1)*p.t_pier)*1000.0,barrel_length=self.i_barrel.value()*1000.0,
-                    joint_spacing=self.i_joint.value()*1000.0,stock=12000.0,anch_mult=self.anch_mult,lap_mult=self.lap_mult,pivot=self.i_pivot.currentText(),
+                    joint_spacing=self.i_joint.value()*1000.0,stock=12000.0,anch_mult=self.anch_mult,lap_mult=self.lap_mult,
                     outer_width=p.W_ext*1000.0,wall_t=p.t_wall*1000.0,schedule=getattr(self,'sched',None),wall_lap=getattr(self,'wlap',None))
 
     # ---------------- run ----------------
@@ -414,9 +413,9 @@ class Main(W.QMainWindow):
             H.append("</table>")
         se2=dskew.slab_effects(p.span*1000,st["skew"]); Wo=p.W_ext*1000; Lb=st["barrel_length"]
         piers=[(-Wo/2+p.t_wall*1000+j*p.span*1000+(j-0.5)*p.t_pier*1000,p.t_pier*1000) for j in range(1,p.n_cells)]
-        g=self.plan=dskew.layout(Wo,Lb,st["apron"],st["flare"],st["skew"],st["pivot"],p.t_wall*1000,piers)
-        H.append(f"<h3 style='color:{BLUE};margin:8px 0 2px;'>Plan — skew {st['skew']:g}°, pivot at the {st['pivot']}</h3>")
-        H.append(f"<p>Road horizontal; barrel ends stay parallel to the road and the wing wall ends stay on the apron edges.<br>"
+        g=self.plan=dskew.layout(Wo,Lb,st["apron"],st["flare"],st["skew"],p.t_wall*1000,piers)
+        H.append(f"<h3 style='color:{BLUE};margin:8px 0 2px;'>Plan — skew {st['skew']:g}°</h3>")
+        H.append(f"<p>Road horizontal; barrel ends and apron ends parallel to the road; wing walls flare {st['flare']:g}° from the culvert axis.<br>"
                  f"Barrel walls <b>{g['wall_length']:,.0f} mm</b> (square {Lb:,.0f}), end faces {g['end_face_length']:,.0f} mm (square {Wo:,.0f}).</p>")
         H.append("<table cellpadding='2' style='font-size:12px;'><tr><td><b>Wing wall</b></td><td><b>length mm</b></td><td><b>change</b></td><td><b>flare °</b></td><td><b>to barrel wall °</b></td></tr>")
         for en in ("inlet","outlet"):
@@ -424,10 +423,10 @@ class Main(W.QMainWindow):
                 w=g["ends"][en]["walls"][sd]; col="" if w["ok"] else f" style='color:{BAD};'"
                 H.append(f"<tr{col}><td>{en} {sd}</td><td>{w['length']:,.0f}</td><td>{w['change']:+,.0f}</td><td>{w['flare']:.1f}</td><td>{180-w['angle_to_barrel_wall']:.1f}</td></tr>")
         H.append("</table>")
-        if not g["ok"]: H.append(f"<p style='color:{BAD};'>A barrel corner has slid past a wing wall end: reduce the skew, lengthen the apron, widen the flare or move the pivot.</p>")
+        if not g["ok"]: H.append(f"<p style='color:{BAD};'>This flare runs parallel to or away from the apron end at this skew: reduce the flare or the skew.</p>")
         H.append(f"<p>Slab end zones: skew span {se2['skew_span']:,.0f} mm, transverse steel × {se2['As_factor_end_zone']:.2f} — {se2['treatment']}.</p>")
         H.append("<table cellpadding='2' style='font-size:11px;'><tr><td><b>skew °</b></td><td><b>barrel wall</b></td><td><b>inlet L / R</b></td><td><b>outlet L / R</b></td></tr>")
-        for r in dskew.simulate(Wo,Lb,st["apron"],st["flare"],pivot=st["pivot"]):
+        for r in dskew.simulate(Wo,Lb,st["apron"],st["flare"]):
             col="" if r["ok"] else f" style='color:{BAD};'"
             H.append(f"<tr{col}><td>{r['skew']}</td><td>{r['wall_length']:,.0f}</td><td>{r['inlet_left']:,.0f} / {r['inlet_right']:,.0f}</td><td>{r['outlet_left']:,.0f} / {r['outlet_right']:,.0f}</td></tr>")
         H.append("</table>")
@@ -449,29 +448,31 @@ class Main(W.QMainWindow):
         ax.plot(tot,zs,color=BLUE,lw=1.4,label="+ surcharge"); ax.axhspan(zt,zb,xmin=0,xmax=0.02,color=BLUE)
         ax.set_ylim(max(zb+1.0,(pr.depth() if pr is not None else zb)*0+zb+1.0),0); ax.set_xlabel("kPa",fontsize=px(11)); ax.set_ylabel("depth below ground (m)",fontsize=px(11))
         ax.set_title("At-rest pressure on the outer wall",fontsize=px(12),color=BLUE); ax.tick_params(labelsize=px(10)); ax.legend(fontsize=px(10),loc="lower right")
-        ax2=self.figg.add_axes([0.44,0.04,0.54,0.92]); self.draw_plan(ax2,g,dskew.layout(Wo,Lb,st["apron"],st["flare"],90.0,st["pivot"],p.t_wall*1000,piers),px)
+        ax2=self.figg.add_axes([0.44,0.04,0.54,0.92]); self.draw_plan(ax2,g,dskew.layout(Wo,Lb,st["apron"],st["flare"],90.0,p.t_wall*1000,piers),px)
         self.cvg.draw_idle()
 
     def draw_plan(self,ax,g,sq,px,title=True):
         """Plan with the road horizontal: skewed layout solid, the square crossing it was turned from dashed."""
-        ax.set_aspect("equal"); ax.axis("off"); L=abs(g["ends"]["outlet"]["y"])*2; xs=[q[0] for e in g["ends"].values() for q in e["apron_poly"]]+[q[0] for q in g["outline"]]
+        ax.set_aspect("equal"); ax.axis("off"); L=abs(g["ends"]["outlet"]["y"])*2; xs=[q[0] for e in g["ends"].values() for q in (e["apron_poly"] or [])]+[q[0] for q in g["outline"]]
         x0,x1=min(xs),max(xs); r=max(x1-x0,L)*0.12
         ax.fill([x0-r,x1+r,x1+r,x0-r],[-L*0.36,-L*0.36,L*0.36,L*0.36],color="#b8c0c9",alpha=0.45,lw=0,zorder=0)
         ax.plot([x0-r,x1+r],[0,0],color="#ffffff",lw=1.2,ls=(0,(8,6)),zorder=1); ax.text(x1+r,0,"  ROAD",fontsize=px(10),color="#4a627a",va="center")
         ax.fill(*zip(*sq["outline"]),fill=False,ec="#8a94a0",lw=0.8,ls="--",zorder=2)
         for en in ("inlet","outlet"):
-            e=g["ends"][en]; ax.fill(*zip(*e["apron_poly"]),color="#e9eef3",ec="#8a94a0",lw=0.7,zorder=2)
+            e=g["ends"][en]
+            if e["apron_poly"]: ax.fill(*zip(*e["apron_poly"]),color="#e9eef3",ec="#8a94a0",lw=0.7,zorder=2)
             for sd in ("left","right"):
                 w0=sq["ends"][en]["walls"][sd]; ax.plot(*zip(w0["start"],w0["end"]),color="#8a94a0",lw=0.8,ls="--",zorder=3)
-                w=e["walls"][sd]; (ax_,ay),(bx_,by)=w["start"],w["end"]
-                ax.plot([ax_,bx_],[ay,by],color=BAD if w["ok"] else "#7d3c98",lw=3.2,solid_capstyle="butt",zorder=5)
+                w=e["walls"][sd]
+                if not w["ok"]: continue
+                (ax_,ay),(bx_,by)=w["start"],w["end"]
+                ax.plot([ax_,bx_],[ay,by],color=BAD,lw=3.2,solid_capstyle="butt",zorder=5)
                 ax.text((ax_+bx_)/2,(ay+by)/2,f" {w['length']:,.0f}\n ({w['change']:+,.0f})",fontsize=px(9.5),color=BAD,va="center",ha="left" if sd=="right" else "right",zorder=6)
         ax.fill(*zip(*g["outline"]),color="#f4f6f9",ec=BLUE,lw=1.0,zorder=3)
         for poly in g["walls"]: ax.fill(*zip(*poly),color=BLUE,lw=0,zorder=4)
-        ax.plot(*zip(*g["axis"]),color=ACC,lw=0.8,ls="-.",zorder=5); ax.plot(*g["pivot_point"],"o",ms=px(6),color=ACC,zorder=7)
-        ax.text(g["pivot_point"][0],g["pivot_point"][1],"  pivot",fontsize=px(9),color=ACC,va="bottom",zorder=7)
-        ax.text(g["ends"]["inlet"]["axis_x"],-L/2-abs(g["ends"]["inlet"]["apron_edge"][0][1]+L/2)*1.12,"INLET",fontsize=px(9.5),color="#4a627a",ha="center",va="top")
-        ax.text(g["ends"]["outlet"]["axis_x"],L/2+abs(g["ends"]["outlet"]["apron_edge"][0][1]-L/2)*1.12,"OUTLET",fontsize=px(9.5),color="#4a627a",ha="center",va="bottom")
+        ax.plot(*zip(*g["axis"]),color=ACC,lw=0.8,ls="-.",zorder=5)
+        ya=max(abs(q[1]) for q in g["axis"])
+        ax.text(g["axis"][0][0],-ya*1.04,"INLET",fontsize=px(9.5),color="#4a627a",ha="center",va="top"); ax.text(g["axis"][1][0],ya*1.04,"OUTLET",fontsize=px(9.5),color="#4a627a",ha="center",va="bottom")
         if title: ax.set_title(f"Skew {g['skew']:g}° (dashed: square crossing)",fontsize=px(12),color=BLUE)
 
     def _fill_checks(self,rows):

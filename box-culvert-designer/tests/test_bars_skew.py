@@ -28,10 +28,19 @@ def test_no_piece_longer_than_stock_and_laps_staggered(nc, sw, toe):
     for a in D.laps:                                                          # measured on the drawing itself
         for b in D.laps:
             if a["mark"] == b["mark"] and a["fam"] != b["fam"]: assert abs(a["at"][0] - b["at"][0]) >= 1.3 * a["l0"] - 1e-6
-    # laps sit in the low-stress zones: outer mats at mid-span, inner mats over the piers
+    # position rule: top bars (01 top slab, 04 base) lap at mid-span only; bottom bars (02 base, 03 top slab) over the piers only
+    assert bars.LAYER == {"01": "top", "02": "bottom", "03": "bottom", "04": "top"}
+    sw, ti, wc = P["SPAN_W"], P["T_INWALL"], P["W_CLEAR"]
+    mids = [-wc / 2 + j * (sw + ti) + sw / 2 for j in range(nc)]; piers = [-wc / 2 + j * sw + (j - 1) * ti + ti / 2 for j in range(1, nc)]
+    sups = piers + [-wc / 2 - P["T_WALL"] / 2, wc / 2 + P["T_WALL"] / 2]
     for lp in D.laps:
-        face = "outer" if lp["mark"] in ("01", "02") else "inner"
-        assert any(abs(lp["at"][0] - x) <= hw + 1e-6 for x, hw in bars.zones(P, face)), lp
+        x0, x1 = lp["at"][0] - lp["l0"] / 2, lp["at"][0] + lp["l0"] / 2
+        if bars.LAYER[lp["mark"]] == "top":                                   # whole lap inside the middle of a cell, clear of every support
+            assert any(abs(lp["at"][0] - m) <= 0.25 * sw - lp["l0"] / 2 + 1e-6 for m in mids), lp
+            assert all(min(abs(x0 - s), abs(x1 - s)) >= 0.25 * sw - P["T_WALL"] / 2 - 1e-6 for s in sups), lp
+        else:                                                                 # whole lap at a pier, clear of every mid-span
+            assert any(abs(lp["at"][0] - q) <= ti / 2 + 0.30 * sw - lp["l0"] / 2 + 1e-6 for q in piers), lp
+            assert all(min(abs(x0 - m), abs(x1 - m)) >= 0.20 * sw - 1e-6 for m in mids), lp
 
 
 @pytest.mark.parametrize("length,skew_deg", [(10500, 90), (30000, 90), (30000, 60), (120000, 75), (12050, 90)])
@@ -81,46 +90,38 @@ def test_square_layout():
     assert g["wall_length"] == pytest.approx(L) and g["end_face_length"] == pytest.approx(W)
 
 
-@pytest.mark.parametrize("S", [50, 60, 70, 75, 80, 85, 95, 100, 110, 120, 130])
-@pytest.mark.parametrize("pivot", ["centre", "inlet", "outlet"])
-def test_skew_layout_invariants(S, pivot):
-    g = skew.layout(W, L, A, FL, S, pivot); sq = skew.layout(W, L, A, FL, 90, pivot); s = math.sin(math.radians(S))
-    o = g["outline"]
-    # barrel: ends parallel to the road at the same distance, walls stretched, true width normal to the axis
+@pytest.mark.parametrize("S", [45, 50, 60, 70, 75, 80, 85, 95, 100, 110, 120, 130, 135])
+@pytest.mark.parametrize("flare", [0.0, 15.0, 30.0, 40.0])
+def test_skew_layout(S, flare):
+    g = skew.layout(W, L, A, flare, S); th = math.radians(S); s = math.sin(th); ct = math.cos(th) / s; b = math.radians(flare); o = g["outline"]
+    # the road is horizontal: barrel ends parallel to it, the axis at the skew angle, walls stretched, section true
     assert o[0][1] == o[1][1] == -L / 2 and o[2][1] == o[3][1] == L / 2
-    assert math.dist(o[0], o[3]) == pytest.approx(L / s) and math.dist(o[1], o[2]) == pytest.approx(L / s)
     ax = (o[3][0] - o[0][0], o[3][1] - o[0][1]); n = math.hypot(*ax)
+    assert n == pytest.approx(L / s) and math.degrees(math.atan2(ax[1], ax[0])) == pytest.approx(S)
     assert abs((o[1][0] - o[0][0]) * ax[1] - (o[1][1] - o[0][1]) * ax[0]) / n == pytest.approx(W)
-    assert math.degrees(math.atan2(ax[1], ax[0])) == pytest.approx(S)                      # the axis makes the skew angle with the road
-    for poly in g["walls"]:                                                               # walls stay solid, thickness true
+    for poly in g["walls"]:
         a2 = (poly[3][0] - poly[0][0], poly[3][1] - poly[0][1])
         assert abs((poly[1][0] - poly[0][0]) * a2[1] - (poly[1][1] - poly[0][1]) * a2[0]) / math.hypot(*a2) == pytest.approx(250.0)
+    assert g["ok"]
+    want = sorted(A / (math.cos(b) - sg * math.sin(b) * ct) for sg in (1, -1))
     for en, e in g["ends"].items():
+        assert sorted(w["length"] for w in e["walls"].values()) == pytest.approx(want)
+        assert e["apron_edge"][0][1] == pytest.approx(e["apron_edge"][1][1])                 # apron end parallel to the road
+        d = abs(e["apron_edge"][0][1] - e["y"]); assert d == pytest.approx(A * s)             # apron runs A along the axis
         for sd, w in e["walls"].items():
-            assert w["end"] == pytest.approx(sq["ends"][en]["walls"][sd]["end"])            # wing wall ends on the apron edge did not move
-            assert w["start"][1] == pytest.approx(e["y"])
-            assert w["length"] == pytest.approx(math.dist(w["start"], w["end"]))
-        assert e["apron_edge"][0][1] == e["apron_edge"][1][1]                               # apron outer edge parallel to the road
-    # the pivot does not move
-    yp = g["pivot_point"][1]; t = (yp + L / 2) / L
-    assert o[0][0] + (o[3][0] - o[0][0]) * t + W / 2 / s == pytest.approx(0.0, abs=1e-6)
-    # mirror crossing swaps left and right
-    m = skew.layout(W, L, A, FL, 180 - S, pivot)
+            assert w["start"][1] == pytest.approx(e["y"]) and w["length"] == pytest.approx(math.dist(w["start"], w["end"]))
+            v = (w["end"][0] - w["start"][0], w["end"][1] - w["start"][1]); sg = 1 if en == "outlet" else -1
+            cosang = (v[0] * sg * ax[0] + v[1] * sg * ax[1]) / (n * w["length"])
+            assert math.degrees(math.acos(max(-1, min(1, cosang)))) == pytest.approx(flare, abs=1e-4)   # flare measured from the culvert axis
+    # mirror crossing swaps left and right; the two ends are each other turned half round
+    m = skew.layout(W, L, A, flare, 180 - S)
     for en in ("inlet", "outlet"):
         assert m["ends"][en]["walls"]["left"]["length"] == pytest.approx(g["ends"][en]["walls"]["right"]["length"])
-    if pivot == "centre":                                                                  # point symmetry about the road centre
-        assert g["ends"]["inlet"]["walls"]["left"]["length"] == pytest.approx(g["ends"]["outlet"]["walls"]["right"]["length"])
-        assert g["ends"]["inlet"]["walls"]["right"]["length"] == pytest.approx(g["ends"]["outlet"]["walls"]["left"]["length"])
-    else:                                                                                  # the pivot end keeps two equal walls
-        e = g["ends"][pivot]["walls"]; assert e["left"]["length"] == pytest.approx(e["right"]["length"])
-    # one wall of each moving end is stretched and the other shortened
-    far = g["ends"]["outlet" if pivot != "outlet" else "inlet"]["walls"]
-    assert (far["left"]["length"] - far["right"]["length"]) != pytest.approx(0)
+    assert g["ends"]["inlet"]["walls"]["left"]["length"] == pytest.approx(g["ends"]["outlet"]["walls"]["right"]["length"])
+    if flare > 0 and S != 90: assert want[1] - want[0] > 1.0                                  # the two walls of an end differ
 
 
-def test_skew_simulation_flags_impossible_walls():
-    rows = skew.simulate(W, L, A, FL)
-    ok = {r["skew"]: r["ok"] for r in rows}
-    assert ok[90] and ok[75] and ok[105] and not ok[45] and not ok[135]
-    # a longer apron or wider flare restores a steeper skew
-    assert skew.layout(W, L, 9000.0, 45.0, 55)["ok"]
+def test_skew_flags_a_flare_that_never_meets_the_apron():
+    g = skew.layout(W, L, A, 50.0, 45)                 # cos b - sin b cot S < 0: that wall runs away from the apron end
+    assert not g["ok"] and any(not w["ok"] and w["reason"] for e in g["ends"].values() for w in e["walls"].values())
+    assert all(r["ok"] for r in skew.simulate(W, L, A, 30.0))

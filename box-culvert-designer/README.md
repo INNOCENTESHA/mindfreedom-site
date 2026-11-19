@@ -43,12 +43,14 @@ The drawing sheets need the generator files in a `generator` folder next to `app
 
 - No scheduled bar exceeds the 12 m stock length, the preferred sizes, a supplied steel grade, the 2750 mm transport
   width of bent shapes or the BS 8666 minimum legs (`detailing/bars.py`). Longer transverse bars are cut and lapped in
-  two alternating families, lap centres at least 1.3 l0 apart and placed in the low-stress zones; U-bars too tall to
-  travel get short legs and a lapped wall bar (mark 11); a toe hairpin too tight to bend becomes a separate U-cap (mark 12).
-- Skew (`detailing/skew.layout`): the road is horizontal; the barrel axis turns about the pivot (road centre, or the
-  inlet / outlet junction line); barrel ends stay parallel to the road, walls stretch to L / sin(skew) with the true
-  cross-section, and the wing wall ends stay on the apron edges, so walls stretch on one side and shorten on the other.
-  `python tests/skew_simulation.py out.png centre` draws the plan at eight skews and tabulates the wall lengths.
+  two alternating families with lap centres at least 1.3 l0 apart. Lap positions follow one rule in both slabs:
+  **top bars are never lapped at or near a support** (laps at mid-span of the cells) and **bottom bars are never lapped
+  at or near mid-span** (laps over the piers). U-bars too tall to travel get short legs and a lapped wall bar
+  (mark 11); a toe hairpin too tight to bend becomes a separate U-cap (mark 12).
+- Skew (`detailing/skew.py`): the plan is drawn with the road horizontal. Barrel ends and apron ends are parallel to
+  the road, the walls are L / sin(skew) long with the true cross-section, and each wing wall flares from the culvert
+  axis to the apron end: length = A / (cos b -/+ sin b cot S), so the two walls of one end differ.
+  `python tests/skew_simulation.py out.png` draws the plan at eight skews and tabulates the wall lengths.
 
 ## Verification
 
