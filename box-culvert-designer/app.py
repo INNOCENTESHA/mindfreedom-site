@@ -15,6 +15,7 @@ from PySide6 import QtCore, QtGui, QtWidgets as W
 
 from engine import Box, P
 from design import design_flexure, check_shear, bar_area
+import section_bb
 
 BLUE="#1b3a5c"; ACC="#2d7dd2"; OK="#1e8449"; BAD="#c0392b"; LIGHT="#f4f6f9"; CARD="#ffffff"; RED="#c0392b"
 
@@ -30,15 +31,16 @@ def pdui():
     if a: a.processEvents()
 
 class Main(W.QMainWindow):
-    def __init__(self):
+    def __init__(self, export=None):
         super().__init__()
+        self.export=export            # dict read from a CBC_EXPORT.txt, or None
         self.setWindowTitle("CBC — Box Culvert Parametric Designer  v0.1")
         self.resize(1380, 880); self.setStyleSheet(f"QMainWindow{{background:{LIGHT};}}")
         self._build_header()
         central=W.QWidget(); self.setCentralWidget(central)
         root=W.QHBoxLayout(central); root.setContentsMargins(10,8,10,10); root.setSpacing(10)
         root.addWidget(self._input_panel(),0); root.addWidget(self._view_panel(),1)
-        self.statusBar().showMessage("Ready"); self.run()
+        self.statusBar().showMessage("Ready"); self._apply_export(); self.run()
 
     # ---------------- header ----------------
     def _build_header(self):
@@ -113,6 +115,17 @@ class Main(W.QMainWindow):
         self.tabs.addTab(t5,"Report")
         v.addWidget(self.tabs,1); return panel
 
+    def _apply_export(self):
+        """Set the input panel from a loaded CBC_EXPORT.txt so the analysis uses the same structure."""
+        E=self.export
+        if not E: return
+        g=lambda k,dv: float(E.get(k,dv))
+        self.i_cells.setValue(int(round(g("N_CELLS",4)))); self.i_span.setValue(g("SPAN_W",1500)/1000); self.i_height.setValue(g("SPAN_H",1500)/1000)
+        self.i_ttop.setValue(g("T_TOP",250)/1000); self.i_tbase.setValue(g("T_BASE",250)/1000); self.i_twall.setValue(g("T_WALL",250)/1000)
+        self.i_fill.setValue(g("FILL_DESIGN",1000)/1000); self.i_fck.setValue(int(g("FCK",25))); self.i_fyk.setValue(int(g("FYK",460)))
+        self.i_cover.setValue(g("COVER",50)/1000); self.i_soil.setValue(int(g("GAMMA_SOIL",20))); self.i_k0.setValue(g("K0",0.5))
+        self.i_sur.setValue(g("SURCHARGE",16.67)); self.i_ks.setValue(int(g("KS",30000)))
+
     def params(self):
         p=P(); p.n_cells=self.i_cells.value(); p.span=self.i_span.value(); p.height=self.i_height.value()
         p.t_top=self.i_ttop.value(); p.t_base=self.i_tbase.value(); p.t_wall=self.i_twall.value(); p.t_pier=self.i_twall.value()
@@ -146,7 +159,7 @@ class Main(W.QMainWindow):
         status="PASS" if maxutil<=1 and self.bearing_sls<=210 else "REVIEW"; col=OK if status=="PASS" else BAD
         self.banner.setStyleSheet(f"background:{col};color:white;border-radius:7px;padding:0 18px;font:600 15px 'DejaVu Sans';")
         self.banner.setText(f"  DESIGN {status}     ·     Max utilisation {maxutil:.2f}     ·     Governing: {govern}     ·     Bearing SLS {self.bearing_sls:.0f} / ULS {self.bearing_uls:.0f} kPa")
-        self._draw_section(self.fig1,p,False); self._draw_bmd(p); self._draw_section(self.fig3,p,True); self._fill_bbs(p); self._fill_report(p)
+        self._draw_bb(self.fig1,p,False); self._draw_bmd(p); self._draw_bb(self.fig3,p,True); self._fill_bbs(p); self._fill_report(p)
         self.statusBar().showMessage(f"{p.n_cells}-cell {p.span:.2f}×{p.height:.2f} m · {len(self.box.u)} load cases · governing {govern}")
 
     def _fill_checks(self,rows):
@@ -167,6 +180,36 @@ class Main(W.QMainWindow):
             x+=p.span
             if i<p.n_cells-1: xs.append(x+p.t_pier/2); x+=p.t_pier
         xs.append(x+p.t_wall/2); return left,xs,(x+p.t_wall)-left
+
+    def detail_params(self,p):
+        """Parameters of the reinforcement drawing, with the keys of CBC_EXPORT.txt."""
+        if self.export: return dict(self.export)
+        d=self.design; mm=lambda v:round(v*1000.0)
+        fd=lambda m:d[m]['fd']
+        out=max((fd(m) for m in ('top','base','walls')),key=lambda f:f.As_prov)     # U-bars 01/02 serve all outer faces
+        Q=dict(N_CELLS=p.n_cells,SPAN_W=mm(p.span),SPAN_H=mm(p.height),T_TOP=mm(p.t_top),T_BASE=mm(p.t_base),
+               T_WALL=mm(p.t_wall),T_INWALL=mm(p.t_pier),COVER=mm(p.cover),
+               OUT_D=out.dia,OUT_S=out.spacing,TOPIN_D=fd('top').dia,TOPIN_S=fd('top').spacing,
+               BOTIN_D=fd('base').dia,BOTIN_S=fd('base').spacing,WALLIN_D=fd('walls').dia,WALLIN_S=fd('walls').spacing)
+        if p.n_cells>1: Q.update(PIER_D=fd('piers').dia,PIER_S=fd('piers').spacing)
+        return Q
+
+    def _draw_bb(self,fig,p,dark):
+        """SECTION B-B - BARREL REINFORCEMENT, drawn exactly as the AutoCAD generator does."""
+        self.bb=section_bb.build(self.detail_params(p))
+        self._render_bb(fig,dark)
+        if not getattr(fig,"_cbc_resize",None):          # text / line sizes follow the paper scale: redraw when resized
+            fig._cbc_resize=fig.canvas.mpl_connect("resize_event",lambda ev,fg=fig,dk=dark:self._render_bb(fg,dk))
+
+    def _render_bb(self,fig,dark):
+        if getattr(fig,"_cbc_busy",False) or not hasattr(self,"bb"): return
+        fig._cbc_busy=True
+        try:
+            fig.clear(); fig.set_facecolor("#000000" if dark else "#ffffff")
+            ax=fig.add_axes([0.005,0.005,0.99,0.99])
+            section_bb.to_mpl(self.bb,ax,dark=dark); fig.canvas.draw_idle()
+        finally:
+            fig._cbc_busy=False
 
     def _draw_section(self,fig,p,detailed):
         fig.clear(); ax=fig.add_subplot(111); ax.set_aspect("equal"); ax.axis("off")
@@ -282,6 +325,15 @@ class Main(W.QMainWindow):
 
     # ---------------- BBS ----------------
     def _fill_bbs(self,p):
+        if self.export and self.export.get("BBS"):
+            rows=self.export["BBS"]; self.bbs.setRowCount(len(rows)); tot=0.0
+            for r,b in enumerate(rows):     # mark, member, bar, dia, sp, nm, ne, total, shape, A, B, C, L, kg/m, weight, ...
+                tot+=float(b[14])
+                for c,val in enumerate([b[0],b[1],b[2],b[7],b[8],b[9],b[12],b[14]]):
+                    it=W.QTableWidgetItem(str(val))
+                    if c in (3,4,5,6,7): it.setTextAlignment(QtCore.Qt.AlignCenter)
+                    self.bbs.setItem(r,c,it)
+            self.bbs.resizeColumnsToContents(); self.bbs_total=tot; return
         left,xwalls,Wext=self._wallxs(p); OH=p.height+p.t_top+p.t_base
         d=lambda m:self.design[m]['fd'].dia; s=lambda m:self.design[m]['fd'].spacing
         def mass(dia,L,n): return bar_area(dia)/1e6*7850*(L/1000)*n
@@ -346,16 +398,24 @@ class Main(W.QMainWindow):
         """
         self.report.setHtml(html)
 
-    def export_dxf(self):
-        self.statusBar().showMessage("DXF export wired in next build step")
+    def export_dxf(self, path=None):
+        if not path:
+            path,_=W.QFileDialog.getSaveFileName(self,"Export reinforcement drawing","SECTION_B-B_BARREL_REINFORCEMENT.dxf","AutoCAD DXF (*.dxf)")
+        if not path: return
+        section_bb.to_dxf(self.bb,path)
+        self.statusBar().showMessage(f"DXF written: {path}  ({len(self.bb.bars())} bars, {len(self.bb.dots)} distribution bars)")
 
 def main():
     shot=None; tab=0
     if "--shot" in sys.argv: shot=sys.argv[sys.argv.index("--shot")+1]
     if "--tab" in sys.argv: tab=int(sys.argv[sys.argv.index("--tab")+1])
-    app=W.QApplication(sys.argv); app.setStyle("Fusion"); win=Main(); win.tabs.setCurrentIndex(tab); win.show()
+    export=None
+    if "--export" in sys.argv: export=section_bb.read_export(sys.argv[sys.argv.index("--export")+1])
+    app=W.QApplication(sys.argv); app.setStyle("Fusion"); win=Main(export); win.tabs.setCurrentIndex(tab); win.show()
     if shot:
-        def grab(): win.grab().save(shot); app.quit()
+        def grab():
+            if "--dxf" in sys.argv: win.export_dxf(sys.argv[sys.argv.index("--dxf")+1])
+            win.grab().save(shot); app.quit()
         QtCore.QTimer.singleShot(1000, grab)
     sys.exit(app.exec())
 
