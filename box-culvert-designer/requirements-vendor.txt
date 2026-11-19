@@ -1,0 +1,5 @@
+# Tools you (the vendor) need to issue licences and sign builds. The shipped app does not need these.
+cryptography>=42
+pyinstaller>=6.0
+# Recommended for a real product (byte-code obfuscation), see PROTECTION.md:
+#   pyarmor>=8

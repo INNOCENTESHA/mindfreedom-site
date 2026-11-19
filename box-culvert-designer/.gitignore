@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+# user source material (their IP, large binaries) - never commit
+_reference/
+generator/
+# produced drawings carry project / client data - never commit
+outputs/*.png
+outputs/*.pdf
+outputs/sheets/
+outputs/CBC01_*
+
+# Licensing secrets — NEVER commit these
+cbc_private_key*
+*private_key*
+licence.cbclic
+*.cbclic
