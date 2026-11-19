@@ -19,6 +19,13 @@ import section_bb
 
 BLUE="#1b3a5c"; ACC="#2d7dd2"; OK="#1e8449"; BAD="#c0392b"; LIGHT="#f4f6f9"; CARD="#ffffff"; RED="#c0392b"
 
+def find_generator():
+    """Folder holding the AutoLISP drawing generator (CBC01_Drawing_Generator.lsp and its extensions)."""
+    here=os.path.dirname(os.path.abspath(__file__))
+    for d in (os.environ.get("CBC_GENERATOR_DIR"), os.path.join(here,"generator"), os.path.join(here,"_reference","zip","DRAWINGS")):
+        if d and os.path.exists(os.path.join(d,"CBC01_Drawing_Generator.lsp")): return d
+    return None
+
 def spin(val, lo, hi, step, dec=0):
     s=W.QDoubleSpinBox() if dec else W.QSpinBox()
     s.setRange(lo,hi); s.setValue(val)
@@ -31,9 +38,11 @@ def pdui():
     if a: a.processEvents()
 
 class Main(W.QMainWindow):
-    def __init__(self, export=None):
+    def __init__(self, export=None, export_path=None):
         super().__init__()
         self.export=export            # dict read from a CBC_EXPORT.txt, or None
+        self.export_path=export_path  # that file: input of the drawing generator
+        self.gen_dir=find_generator(); self.drawset=None; self.sheet_cache={}
         self.setWindowTitle("CBC — Box Culvert Parametric Designer  v0.1")
         self.resize(1380, 880); self.setStyleSheet(f"QMainWindow{{background:{LIGHT};}}")
         self._build_header()
@@ -113,6 +122,18 @@ class Main(W.QMainWindow):
         t5=W.QWidget(); l5=W.QVBoxLayout(t5); self.report=W.QTextEdit(); self.report.setReadOnly(True)
         self.report.setStyleSheet(f"QTextEdit{{background:{CARD};border:none;font:13px 'DejaVu Sans';}}"); l5.addWidget(self.report)
         self.tabs.addTab(t5,"Report")
+        # Tab 6 — Drawings: the full sheet set produced by the drawing generator
+        t6=W.QWidget(); l6=W.QVBoxLayout(t6); bar=W.QHBoxLayout()
+        self.cb_sheet=W.QComboBox(); self.cb_sheet.setMinimumWidth(150); self.cb_sheet.currentTextChanged.connect(self.show_sheet)
+        bar.addWidget(W.QLabel("Sheet")); bar.addWidget(self.cb_sheet)
+        for name,slot in [("Export all sheets to DXF",self.export_set_dxf),("Export all sheets to PDF",self.export_set_pdf)]:
+            b=W.QPushButton(name); b.clicked.connect(slot); b.setStyleSheet(f"QPushButton{{background:{ACC};color:white;border:none;padding:6px 12px;border-radius:4px;font:600 12px;}}"); bar.addWidget(b)
+        self.lb_set=W.QLabel(""); self.lb_set.setStyleSheet("color:#4a627a;font:12px;"); bar.addWidget(self.lb_set,1); l6.addLayout(bar)
+        self.sheet_view=W.QLabel("Open this tab to generate the drawings."); self.sheet_view.setAlignment(QtCore.Qt.AlignCenter)
+        self.sheet_view.setStyleSheet("background:#ffffff;color:#4a627a;font:13px;")
+        sc=W.QScrollArea(); sc.setWidget(self.sheet_view); sc.setWidgetResizable(True); l6.addWidget(sc,1)
+        self.tabs.addTab(t6,"Drawings")
+        self.tabs.currentChanged.connect(lambda i: self.open_drawings() if self.tabs.tabText(i)=="Drawings" else None)
         v.addWidget(self.tabs,1); return panel
 
     def _apply_export(self):
@@ -405,13 +426,72 @@ class Main(W.QMainWindow):
         section_bb.to_dxf(self.bb,path)
         self.statusBar().showMessage(f"DXF written: {path}  ({len(self.bb.bars())} bars, {len(self.bb.dots)} distribution bars)")
 
+# ---------------------------------------------------------------- drawing set (added to Main below)
+def _open_drawings(self):
+    """Run the drawing generator once and list its sheets."""
+    if self.drawset is not None: return
+    if not self.gen_dir:
+        self.sheet_view.setText("Drawing generator not found.\nPut CBC01_Drawing_Generator.lsp and its extension files in a 'generator' folder next to the app,\nor set CBC_GENERATOR_DIR."); return
+    if not self.export_path:
+        self.sheet_view.setText("No parameter export loaded.\nStart the app with  --export CBC_EXPORT.txt  to produce the drawings for that structure."); return
+    self.statusBar().showMessage("Running the drawing generator…"); pdui()
+    from cbcdraw.run import generate
+    from cbcdraw import render
+    rec,I,log,status=generate(self.export_path,self.gen_dir,[os.path.join(self.gen_dir,"LOGO_FLAT")])
+    if status!="ok":
+        self.sheet_view.setText("The generator stopped:\n"+"\n".join(log[-6:])); return
+    self.drawset=dict(rec=rec,log=log,doc=None,names=render.sheet_names(rec))
+    n=sum(1 for _ in rec.all_ents())
+    self.lb_set.setText(f"   {len(self.drawset['names'])} sheets · {n:,} drawing objects · {log[-2] if len(log)>1 else ''}")
+    self.cb_sheet.blockSignals(True); self.cb_sheet.addItems(self.drawset["names"]); self.cb_sheet.blockSignals(False)
+    want=getattr(self,"start_sheet",None) or (self.drawset["names"][1] if len(self.drawset["names"])>1 else self.drawset["names"][0])
+    self.cb_sheet.setCurrentText(want); self.show_sheet(want)
+
+def _show_sheet(self,name):
+    if not name or self.drawset is None: return
+    from cbcdraw import render
+    if name not in self.sheet_cache:
+        self.statusBar().showMessage(f"Rendering sheet {name}…"); pdui()
+        if self.drawset["doc"] is None: self.drawset["doc"]=render.build_doc(self.drawset["rec"])
+        import tempfile
+        path=os.path.join(tempfile.gettempdir(),f"cbc_sheet_{os.getpid()}_{name}.png")
+        render.sheet_png(self.drawset["doc"],name,path,dpi=110); self.sheet_cache[name]=path
+    pm=QtGui.QPixmap(self.sheet_cache[name])
+    w=max(600,self.tabs.width()-60)
+    self.sheet_view.setPixmap(pm.scaledToWidth(w,QtCore.Qt.SmoothTransformation))
+    self.statusBar().showMessage(f"Sheet {name} - produced by the drawing generator, no AutoCAD involved")
+
+def _export_set_dxf(self,path=None):
+    self.open_drawings()
+    if self.drawset is None: return
+    if not path: path,_=W.QFileDialog.getSaveFileName(self,"Export the drawing set","DETAILED_DRAWINGS.dxf","AutoCAD DXF (*.dxf)")
+    if not path: return
+    from cbcdraw.export import to_dxf
+    to_dxf(self.drawset["rec"],path,image_paths="relative")
+    self.statusBar().showMessage(f"DXF written: {path}  (model space + {len(self.drawset['names'])} layouts)")
+
+def _export_set_pdf(self,path=None):
+    self.open_drawings()
+    if self.drawset is None: return
+    if not path: path,_=W.QFileDialog.getSaveFileName(self,"Export the drawing set","DETAILED_DRAWINGS.pdf","PDF (*.pdf)")
+    if not path: return
+    from cbcdraw import render
+    if self.drawset["doc"] is None: self.drawset["doc"]=render.build_doc(self.drawset["rec"])
+    self.statusBar().showMessage("Writing PDF…"); pdui()
+    render.sheets_pdf(self.drawset["doc"],self.drawset["names"],path)
+    self.statusBar().showMessage(f"PDF written: {path}")
+
+Main.open_drawings=_open_drawings; Main.show_sheet=_show_sheet; Main.export_set_dxf=_export_set_dxf; Main.export_set_pdf=_export_set_pdf
+
 def main():
     shot=None; tab=0
     if "--shot" in sys.argv: shot=sys.argv[sys.argv.index("--shot")+1]
     if "--tab" in sys.argv: tab=int(sys.argv[sys.argv.index("--tab")+1])
-    export=None
-    if "--export" in sys.argv: export=section_bb.read_export(sys.argv[sys.argv.index("--export")+1])
-    app=W.QApplication(sys.argv); app.setStyle("Fusion"); win=Main(export); win.tabs.setCurrentIndex(tab); win.show()
+    export=None; epath=None
+    if "--export" in sys.argv: epath=sys.argv[sys.argv.index("--export")+1]; export=section_bb.read_export(epath)
+    app=W.QApplication(sys.argv); app.setStyle("Fusion"); win=Main(export,epath)
+    if "--sheet" in sys.argv: win.start_sheet=sys.argv[sys.argv.index("--sheet")+1]
+    win.show(); win.tabs.setCurrentIndex(tab)
     if shot:
         def grab():
             if "--dxf" in sys.argv: win.export_dxf(sys.argv[sys.argv.index("--dxf")+1])
