@@ -59,6 +59,9 @@ nav.menu a.cta:hover{background:#3FD6CA;color:var(--ink)}
 .hero .wrap{position:relative;padding-block:clamp(64px,10vw,120px) clamp(56px,8vw,96px);display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:48px;align-items:end}
 .hero h1{font-weight:900;font-stretch:118%;font-size:clamp(40px,6.6vw,84px);letter-spacing:-.02em;line-height:.98}
 .hero h1 em{font-style:normal;color:var(--teal)}
+/* longer translations: smaller headline so the buttons stay in the first screen, and never split a word */
+.hero h1{overflow-wrap:normal;word-break:normal}
+.hero h1.long{font-size:clamp(32px,4.2vw,56px);font-stretch:100%}
 .hero p.lead{font-size:clamp(17px,1.6vw,20px);color:var(--band-muted);max-width:56ch;margin:22px 0 0}
 .hero .eyebrow{color:var(--teal);display:block;margin-bottom:18px}
 .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
@@ -253,3 +256,9 @@ html[lang="en"] [data-not="en"]{display:none}
 @media (max-width:480px){.top .wrap{gap:8px}.brand{gap:8px}.brand b{font-size:15px}.brand small{font-size:9px;letter-spacing:.14em}.lang svg{display:none}.lang select{max-width:92px;padding:6px 4px}}
 [dir="rtl"] .bot form button[type="submit"] svg{transform:scaleX(-1)}
 .msg.note{background:transparent;border:1px dashed var(--line);color:var(--muted);font-size:13px}
+
+/* <picture> wrappers (WebP with PNG fallback) take no box of their own, so the img styles above keep working */
+picture{display:contents}
+
+/* assistant: waiting for the server's reply */
+.msg.typing{opacity:.6;letter-spacing:.2em}

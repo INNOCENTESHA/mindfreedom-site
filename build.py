@@ -41,7 +41,13 @@ GENERIC = ('<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="
 icon = site["site"].get("whatsappIcon", "")
 if icon and not (ROOT / icon).is_file():
     sys.exit(f"whatsappIcon file not found: {icon}")
-page = page.replace("{{WA_ICON}}", f'<img src="{html.escape(icon)}" alt="" width="52" height="52">' if icon else GENERIC)
+webp = str(Path(icon).with_suffix(".webp")) if icon else ""
+if icon and (ROOT / webp).is_file():   # smaller WebP copy beside the PNG, used where the browser supports it
+    icon_html = (f'<picture><source srcset="{html.escape(webp)}" type="image/webp">'
+                 f'<img src="{html.escape(icon)}" alt="" width="52" height="52"></picture>')
+else:
+    icon_html = f'<img src="{html.escape(icon)}" alt="" width="52" height="52">' if icon else ""
+page = page.replace("{{WA_ICON}}", icon_html or GENERIC)
 page = page.replace("{{WA_CLASS}}", " has-img" if icon else "")
 
 def key(k):
@@ -59,9 +65,35 @@ config = {
     "langs": langs,
     "i18nPath": site.get("i18nPath", "content/i18n/"),
     "assistantEndpoint": site.get("assistantEndpoint", ""),
+    "siteUrl": site["site"]["url"].rstrip("/"),
     "en": en,
 }
 cfg = json.dumps(config, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+
+# early language pick in <head>: language codes, plus browser languages the site does not have,
+# mapped to the closest one it does (Kazakh, Tajik, Turkmen -> Russian, Azerbaijani -> Turkish, ...)
+aliases = {"tl": "fil", "kk": "ru", "tg": "ru", "tk": "ru", "az": "tr", "ms": "id"}
+aliases.update(site.get("languageAliases", {}))
+codes = [l["code"] for l in langs]
+for a, t in aliases.items():
+    if t not in codes:
+        sys.exit(f"languageAliases: {a} -> {t}, but {t} is not in languages")
+page = page.replace("{{LANG_CODES}}", json.dumps(codes)).replace("{{LANG_ALIASES}}", json.dumps(aliases))
+page = page.replace("{{I18N_PATH}}", config["i18nPath"])
+
+# one address per language (?lang=xx) for search engines: <link hreflang> tags and sitemap.xml
+SITE = site["site"]["url"].rstrip("/")
+def lang_url(c):
+    return f"{SITE}/" if c == "en" else f"{SITE}/?lang={c}"
+alts = [f'<link rel="alternate" hreflang="{c}" href="{lang_url(c)}">' for c in codes]
+alts.append(f'<link rel="alternate" hreflang="x-default" href="{SITE}/">')
+page = page.replace("{{HREFLANG}}", "\n".join(alts)).replace("{{SITE_URL}}", SITE)
+from datetime import date
+xl = "".join(f'<xhtml:link rel="alternate" hreflang="{c}" href="{html.escape(lang_url(c))}"/>' for c in codes)
+urls = "".join(f"<url><loc>{html.escape(lang_url(c))}</loc><lastmod>{date.today().isoformat()}</lastmod>{xl}</url>" for c in codes)
+(ROOT / "sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?>\n'
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">'
+    + urls + "</urlset>\n", encoding="utf-8")
 
 page = page.replace("{{CSS}}", read("src/site.css")).replace("{{CONFIG}}", cfg).replace("{{JS}}", read("src/site.js"))
 left = re.findall(r"\{\{\w+\}\}", page)

@@ -3,27 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Mind Freedom AI Consultancy | AI for engineering, research and everyday work</title>
+<title data-i18n="meta_title"></title>
 <meta name="description" content="Mind Freedom AI Consultancy puts AI to work inside engineering software, office workflows and research practice, then trains your team to run it. Based in Zanzibar, Tanzania.">
 <link rel="canonical" href="https://mindfreedom.co.tz/">
+{{HREFLANG}}
 <meta property="og:type" content="website">
 <meta property="og:title" content="Mind Freedom AI Consultancy">
 <meta property="og:description" content="AI for engineering, GIS, automation, academic support and training.">
 <meta property="og:url" content="https://mindfreedom.co.tz/">
 <meta property="og:image" content="https://mindfreedom.co.tz/assets/mf_logo_brain.png">
 <meta name="theme-color" content="#0F1A47">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
-<link rel="icon" type="image/png" sizes="64x64" href="assets/favicon.png">
-<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"ProfessionalService","name":"Mind Freedom AI Consultancy","url":"https://mindfreedom.co.tz","email":"info@mindfreedom.co.tz","telephone":"+255689012860","logo":"https://mindfreedom.co.tz/assets/mf_logo_brain.png","address":{"@type":"PostalAddress","addressLocality":"Zanzibar","addressCountry":"TZ"},"founder":{"@type":"Person","name":"Innocent Pius Tesha"}}</script>
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..900&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-<style>
-{{CSS}}</style>
-
-  <!-- Meta Pixel (dataset 1563999748603685) -->
+<!-- Meta Pixel (dataset 1563999748603685) -->
   <script>
   !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
   n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
@@ -39,12 +29,49 @@
   </script>
   <noscript><img height="1" width="1" style="display:none" alt=""
   src="https://www.facebook.com/tr?id=1563999748603685&ev=PageView&noscript=1"/></noscript>
+
+<script>
+/* Pick the language before the page paints: ?lang=xx in the address first (ads link to it),
+   then the visitor's saved choice, then the phone/browser language. Non-English pages stay
+   hidden (max 2.5 s) until their text has loaded, so visitors never see English flash first. */
+(function(){
+  var C={{LANG_CODES}},A={{LANG_ALIASES}};
+  function ok(x){x=String(x||'').toLowerCase().split(/[-_]/)[0];x=A[x]||x;return C.indexOf(x)>-1?x:''}
+  var c='';
+  try{c=ok(new URLSearchParams(location.search).get('lang'))}catch(e){}
+  if(!c){try{c=ok(localStorage.getItem('mf-lang'))}catch(e){}}
+  if(!c){var n=navigator.languages||[navigator.language];for(var i=0;i<n.length&&!c;i++)c=ok(n[i])}
+  c=c||'en';window.MF_LANG=c;
+  /* an address with ?lang=xx is its own page for search engines */
+  try{if(new URLSearchParams(location.search).get('lang')&&c!=='en'){var k=document.querySelector('link[rel=canonical]');if(k)k.href='{{SITE_URL}}/?lang='+c}}catch(e){}
+  if(c!=='en'){
+    var d=document.documentElement;d.className+=' mf-wait';
+    window.MF_PRE=fetch('{{I18N_PATH}}'+c+'.json').then(function(r){if(!r.ok)throw 0;return r.json()});
+    setTimeout(function(){d.classList.remove('mf-wait')},2500);
+  }
+})();
+</script>
+<style>.mf-wait body{visibility:hidden}</style>
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"ProfessionalService","name":"Mind Freedom AI Consultancy","url":"https://mindfreedom.co.tz","email":"info@mindfreedom.co.tz","telephone":"+255689012860","logo":"https://mindfreedom.co.tz/assets/mf_logo_brain.png","address":{"@type":"PostalAddress","addressLocality":"Zanzibar","addressCountry":"TZ"},"founder":{"@type":"Person","name":"Innocent Pius Tesha"}}</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- fonts load without holding up the page; text shows at once in a system font, then switches -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..900&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..900&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"></noscript>
+<style>
+{{CSS}}</style>
+
+
 </head>
 <body>
 <header class="top">
   <div class="wrap">
     <a class="brand" href="#top" aria-label="Mind Freedom AI Consultancy, home">
-      <img src="assets/mf_mark.png" alt="" width="42" height="26">
+      <picture><source srcset="assets/mf_mark.webp" type="image/webp"><img src="assets/mf_mark.png" alt="" width="42" height="26"></picture>
       <span><b>MIND FREEDOM</b><small>AI CONSULTANCY</small></span>
     </a>
     <label class="lang"><svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M2 10h16M10 2c2.6 2.4 2.6 13.6 0 16M10 2c-2.6 2.4-2.6 13.6 0 16"/></svg><select id="lang" aria-label="Language"></select></label>
@@ -251,7 +278,7 @@
         <p data-i18n="about_p"></p>
       </div>
       <div class="card-id">
-        <div class="logo"><img src="assets/mf_logo_brain.png" alt="Mind Freedom AI Consultancy" width="600" height="161"></div>
+        <div class="logo"><picture><source srcset="assets/mf_logo_brain.webp" type="image/webp"><img src="assets/mf_logo_brain.png" alt="Mind Freedom AI Consultancy" width="600" height="161" loading="lazy" decoding="async"></picture></div>
         <dl>
           <dt data-i18n="ab1"></dt><dd data-i18n="ab1v"></dd>
           <dt data-i18n="ab2"></dt><dd data-i18n="ab2v"></dd>

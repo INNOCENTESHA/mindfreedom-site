@@ -1,0 +1,15 @@
+name = "mindfreedom-assistant"
+main = "assistant-worker.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+
+# The API key is NOT here. Keep it on Cloudflare as the encrypted secret AI_API_KEY.
+# These plain settings match what is set in the Cloudflare dashboard; keep them here so a
+# `wrangler deploy` does not remove them.
+[vars]
+AI_PROVIDER = "gemini"
+AI_MODEL = "gemini-3.8-flash"
+# AI_SEARCH = "off"           # uncomment to stop Gemini from using Google Search
+
+[observability]
+enabled = true

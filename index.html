@@ -3,15 +3,77 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Mind Freedom AI Consultancy | AI for engineering, research and everyday work</title>
+<title data-i18n="meta_title">Mind Freedom AI Consultancy | AI for engineering, research and everyday work</title>
 <meta name="description" content="Mind Freedom AI Consultancy puts AI to work inside engineering software, office workflows and research practice, then trains your team to run it. Based in Zanzibar, Tanzania.">
 <link rel="canonical" href="https://mindfreedom.co.tz/">
+<link rel="alternate" hreflang="en" href="https://mindfreedom.co.tz/">
+<link rel="alternate" hreflang="sw" href="https://mindfreedom.co.tz/?lang=sw">
+<link rel="alternate" hreflang="es" href="https://mindfreedom.co.tz/?lang=es">
+<link rel="alternate" hreflang="de" href="https://mindfreedom.co.tz/?lang=de">
+<link rel="alternate" hreflang="tr" href="https://mindfreedom.co.tz/?lang=tr">
+<link rel="alternate" hreflang="zh" href="https://mindfreedom.co.tz/?lang=zh">
+<link rel="alternate" hreflang="fil" href="https://mindfreedom.co.tz/?lang=fil">
+<link rel="alternate" hreflang="ja" href="https://mindfreedom.co.tz/?lang=ja">
+<link rel="alternate" hreflang="ar" href="https://mindfreedom.co.tz/?lang=ar">
+<link rel="alternate" hreflang="ru" href="https://mindfreedom.co.tz/?lang=ru">
+<link rel="alternate" hreflang="uz" href="https://mindfreedom.co.tz/?lang=uz">
+<link rel="alternate" hreflang="ky" href="https://mindfreedom.co.tz/?lang=ky">
+<link rel="alternate" hreflang="fr" href="https://mindfreedom.co.tz/?lang=fr">
+<link rel="alternate" hreflang="pt" href="https://mindfreedom.co.tz/?lang=pt">
+<link rel="alternate" hreflang="hi" href="https://mindfreedom.co.tz/?lang=hi">
+<link rel="alternate" hreflang="it" href="https://mindfreedom.co.tz/?lang=it">
+<link rel="alternate" hreflang="ko" href="https://mindfreedom.co.tz/?lang=ko">
+<link rel="alternate" hreflang="id" href="https://mindfreedom.co.tz/?lang=id">
+<link rel="alternate" hreflang="nl" href="https://mindfreedom.co.tz/?lang=nl">
+<link rel="alternate" hreflang="vi" href="https://mindfreedom.co.tz/?lang=vi">
+<link rel="alternate" hreflang="pl" href="https://mindfreedom.co.tz/?lang=pl">
+<link rel="alternate" hreflang="th" href="https://mindfreedom.co.tz/?lang=th">
+<link rel="alternate" hreflang="x-default" href="https://mindfreedom.co.tz/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Mind Freedom AI Consultancy">
 <meta property="og:description" content="AI for engineering, GIS, automation, academic support and training.">
 <meta property="og:url" content="https://mindfreedom.co.tz/">
 <meta property="og:image" content="https://mindfreedom.co.tz/assets/mf_logo_brain.png">
 <meta name="theme-color" content="#0F1A47">
+<!-- Meta Pixel (dataset 1563999748603685) -->
+  <script>
+  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+  n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+  document,'script','https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init','1563999748603685');
+  fbq('track','PageView');
+  document.addEventListener('click',function(ev){
+    var a=ev.target.closest&&ev.target.closest('a[href^="mailto:"],a[href*="wa.me/"]');
+    if(a)fbq('track','Contact');
+  });
+  </script>
+  <noscript><img height="1" width="1" style="display:none" alt=""
+  src="https://www.facebook.com/tr?id=1563999748603685&ev=PageView&noscript=1"/></noscript>
+
+<script>
+/* Pick the language before the page paints: ?lang=xx in the address first (ads link to it),
+   then the visitor's saved choice, then the phone/browser language. Non-English pages stay
+   hidden (max 2.5 s) until their text has loaded, so visitors never see English flash first. */
+(function(){
+  var C=["en", "sw", "es", "de", "tr", "zh", "fil", "ja", "ar", "ru", "uz", "ky", "fr", "pt", "hi", "it", "ko", "id", "nl", "vi", "pl", "th"],A={"tl": "fil", "kk": "ru", "tg": "ru", "tk": "ru", "az": "tr", "ms": "id"};
+  function ok(x){x=String(x||'').toLowerCase().split(/[-_]/)[0];x=A[x]||x;return C.indexOf(x)>-1?x:''}
+  var c='';
+  try{c=ok(new URLSearchParams(location.search).get('lang'))}catch(e){}
+  if(!c){try{c=ok(localStorage.getItem('mf-lang'))}catch(e){}}
+  if(!c){var n=navigator.languages||[navigator.language];for(var i=0;i<n.length&&!c;i++)c=ok(n[i])}
+  c=c||'en';window.MF_LANG=c;
+  /* an address with ?lang=xx is its own page for search engines */
+  try{if(new URLSearchParams(location.search).get('lang')&&c!=='en'){var k=document.querySelector('link[rel=canonical]');if(k)k.href='https://mindfreedom.co.tz/?lang='+c}}catch(e){}
+  if(c!=='en'){
+    var d=document.documentElement;d.className+=' mf-wait';
+    window.MF_PRE=fetch('content/i18n/'+c+'.json').then(function(r){if(!r.ok)throw 0;return r.json()});
+    setTimeout(function(){d.classList.remove('mf-wait')},2500);
+  }
+})();
+</script>
+<style>.mf-wait body{visibility:hidden}</style>
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
 <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon.png">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
@@ -19,7 +81,9 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..900&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<!-- fonts load without holding up the page; text shows at once in a system font, then switches -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..900&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..900&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"></noscript>
 <style>
 /* Layout: navy "signal" hero band with a live node-network, then a light working page in a 12-col rhythm; case files read like engineering sheets. */
 :root{
@@ -82,6 +146,9 @@ nav.menu a.cta:hover{background:#3FD6CA;color:var(--ink)}
 .hero .wrap{position:relative;padding-block:clamp(64px,10vw,120px) clamp(56px,8vw,96px);display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:48px;align-items:end}
 .hero h1{font-weight:900;font-stretch:118%;font-size:clamp(40px,6.6vw,84px);letter-spacing:-.02em;line-height:.98}
 .hero h1 em{font-style:normal;color:var(--teal)}
+/* longer translations: smaller headline so the buttons stay in the first screen, and never split a word */
+.hero h1{overflow-wrap:normal;word-break:normal}
+.hero h1.long{font-size:clamp(32px,4.2vw,56px);font-stretch:100%}
 .hero p.lead{font-size:clamp(17px,1.6vw,20px);color:var(--band-muted);max-width:56ch;margin:22px 0 0}
 .hero .eyebrow{color:var(--teal);display:block;margin-bottom:18px}
 .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
@@ -276,30 +343,21 @@ html[lang="en"] [data-not="en"]{display:none}
 @media (max-width:480px){.top .wrap{gap:8px}.brand{gap:8px}.brand b{font-size:15px}.brand small{font-size:9px;letter-spacing:.14em}.lang svg{display:none}.lang select{max-width:92px;padding:6px 4px}}
 [dir="rtl"] .bot form button[type="submit"] svg{transform:scaleX(-1)}
 .msg.note{background:transparent;border:1px dashed var(--line);color:var(--muted);font-size:13px}
+
+/* <picture> wrappers (WebP with PNG fallback) take no box of their own, so the img styles above keep working */
+picture{display:contents}
+
+/* assistant: waiting for the server's reply */
+.msg.typing{opacity:.6;letter-spacing:.2em}
 </style>
 
-  <!-- Meta Pixel (dataset 1563999748603685) -->
-  <script>
-  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-  n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
-  n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
-  t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
-  document,'script','https://connect.facebook.net/en_US/fbevents.js');
-  fbq('init','1563999748603685');
-  fbq('track','PageView');
-  document.addEventListener('click',function(ev){
-    var a=ev.target.closest&&ev.target.closest('a[href^="mailto:"],a[href*="wa.me/"]');
-    if(a)fbq('track','Contact');
-  });
-  </script>
-  <noscript><img height="1" width="1" style="display:none" alt=""
-  src="https://www.facebook.com/tr?id=1563999748603685&ev=PageView&noscript=1"/></noscript>
+
 </head>
 <body>
 <header class="top">
   <div class="wrap">
     <a class="brand" href="#top" aria-label="Mind Freedom AI Consultancy, home">
-      <img src="assets/mf_mark.png" alt="" width="42" height="26">
+      <picture><source srcset="assets/mf_mark.webp" type="image/webp"><img src="assets/mf_mark.png" alt="" width="42" height="26"></picture>
       <span><b>MIND FREEDOM</b><small>AI CONSULTANCY</small></span>
     </a>
     <label class="lang"><svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M2 10h16M10 2c2.6 2.4 2.6 13.6 0 16M10 2c-2.6 2.4-2.6 13.6 0 16"/></svg><select id="lang" aria-label="Language"></select></label>
@@ -506,7 +564,7 @@ html[lang="en"] [data-not="en"]{display:none}
         <p data-i18n="about_p">Founded by Innocent Pius Tesha, a civil, structural and GIS engineer, Mind Freedom uses AI on live projects and measures what it saves. AI does the repetitive work; your people keep the judgement.</p>
       </div>
       <div class="card-id">
-        <div class="logo"><img src="assets/mf_logo_brain.png" alt="Mind Freedom AI Consultancy" width="600" height="161"></div>
+        <div class="logo"><picture><source srcset="assets/mf_logo_brain.webp" type="image/webp"><img src="assets/mf_logo_brain.png" alt="Mind Freedom AI Consultancy" width="600" height="161" loading="lazy" decoding="async"></picture></div>
         <dl>
           <dt data-i18n="ab1">Founder</dt><dd data-i18n="ab1v">Innocent Pius Tesha, civil &amp; structural engineer</dd>
           <dt data-i18n="ab2">Focus</dt><dd data-i18n="ab2v">Engineering, GIS, automation, academic support, training</dd>
@@ -571,7 +629,7 @@ html[lang="en"] [data-not="en"]{display:none}
     <span data-i18n="ai_title">Mind Freedom assistant</span>
   </button>
   <a class="fab fab-wa has-img" href="https://wa.me/255689012860" target="_blank" rel="noopener" data-i18n-aria="wa" aria-label="Chat on WhatsApp" title="WhatsApp">
-    <img src="assets/whatsapp.png" alt="" width="52" height="52">
+    <picture><source srcset="assets/whatsapp.webp" type="image/webp"><img src="assets/whatsapp.png" alt="" width="52" height="52"></picture>
     <span>WhatsApp</span>
   </a>
 </div>
@@ -595,7 +653,7 @@ html[lang="en"] [data-not="en"]{display:none}
   </form>
 </section>
 
-<script>window.MF={"langs":[{"code":"en","name":"English","speech":"en-US"},{"code":"sw","name":"Kiswahili","speech":"sw-TZ"},{"code":"es","name":"Español","speech":"es-ES"},{"code":"de","name":"Deutsch","speech":"de-DE"},{"code":"tr","name":"Türkçe","speech":"tr-TR"},{"code":"zh","name":"中文","speech":"zh-CN"},{"code":"fil","name":"Filipino","speech":"fil-PH"},{"code":"ja","name":"日本語","speech":"ja-JP"},{"code":"ar","name":"العربية","speech":"ar-SA","dir":"rtl"},{"code":"ru","name":"Русский","speech":"ru-RU"},{"code":"fr","name":"Français","speech":"fr-FR"},{"code":"pt","name":"Português","speech":"pt-BR"},{"code":"hi","name":"हिन्दी","speech":"hi-IN"},{"code":"it","name":"Italiano","speech":"it-IT"},{"code":"ko","name":"한국어","speech":"ko-KR"},{"code":"id","name":"Bahasa Indonesia","speech":"id-ID"},{"code":"nl","name":"Nederlands","speech":"nl-NL"},{"code":"vi","name":"Tiếng Việt","speech":"vi-VN"},{"code":"pl","name":"Polski","speech":"pl-PL"},{"code":"th","name":"ไทย","speech":"th-TH"}],"i18nPath":"content/i18n/","assistantEndpoint":"","en":{"nav_services":"Services","nav_process":"How we work","nav_work":"Case studies","nav_about":"About","nav_cta":"Book a consultation","hero_eyebrow":"AI consultancy · Tanzania & beyond","hero_h1":"Put AI to work <em>inside<\/em> the tools you already use.","hero_lead":"We connect AI to engineering software, office workflows and research practice, then train your people to run it. Real projects, measured results, and no hype.","hero_cta1":"Book a free consultation","hero_cta2":"See the case studies","svc_h2":"AI for academics, professions and everyday work","svc_p":"Every engagement starts from a real task you do each week. We pick the right AI tools, connect them to your files and software, and leave you with a working system and the skills to keep it running.","s1_t":"Engineering & GIS with AI","s1_d":"AI that works directly inside your design, analysis and mapping software.","s2_t":"Workflow automation","s2_d":"Scheduled jobs that read your email, update your sheets and send the report.","s3_t":"Academic & research support","s3_d":"Responsible AI for teaching, study and research, within your institution's rules.","s4_t":"Documents, reports & planning","s4_d":"Faster proposals, reports and schedules that still read like your firm wrote them.","s5_t":"Custom tools & connectors","s5_d":"Small, dependable tools built around a specific calculation or system.","s6_t":"Training & workshops","s6_d":"Hands-on sessions so your team can use AI safely and well on its own.","proc_h2":"From one weekly task to a working system","p1_t":"Discover","p1_d":"A free call to map where time goes and which tasks AI can safely take on.","p2_t":"Pilot","p2_d":"We automate one real task end to end and measure the time saved.","p3_t":"Deploy","p3_d":"We connect it to your software, schedule it and document how it runs.","p4_t":"Train & support","p4_d":"Your team learns to run and extend it, with support when you need it.","work_h2":"Selected work, delivered with AI","work_p":"Ten recent projects across structures, GIS, planning and automation. Client and site names are withheld.","about_h2":"Engineers first, AI practitioners second","about_p":"Founded by Innocent Pius Tesha, a civil, structural and GIS engineer, Mind Freedom uses AI on live projects and measures what it saves. AI does the repetitive work; your people keep the judgement.","contact_h2":"Tell us about one task that eats your week.","contact_p":"We reply within one working day with a short plan and whether AI is the right fit. The first consultation is free.","f_name":"Name","f_email":"Email","f_org":"Organisation","f_topic":"Interested in","f_msg":"The task you'd like help with","f_send":"Send message","f_ok":"Thank you. Your message was sent; we will reply within one working day.","f_err":"The message could not be sent. Please email info@mindfreedom.co.tz directly.","f_invalid":"Please add your name, a valid email and a short description of the task.","wa":"Chat on WhatsApp","ai_title":"Mind Freedom assistant","ai_hello":"Hello! Ask me about our services, how we work, pricing or how to reach us.","ai_ph":"Type your question…","ai_price":"The first consultation is free. After it, we send a quote for your task before any work starts.","ai_contact":"Email info@mindfreedom.co.tz, call or WhatsApp +255 689 012 860, or use the contact form on this page.","ai_fallback":"I don't have an answer for that yet. Message us on WhatsApp or by email and a person will reply.","chip_price":"Pricing","chip_contact":"Contact","ai_voice":"Read replies aloud","ai_mic":"Speak","menu":"Menu","st1_l":"of road mapped in a self-updating GIS atlas","st2_u":"tasks","st2_l":"sequenced in a 549-day construction schedule","st3_u":"sheets","st3_l":"of structural drawings drafted and plotted","st4_u":"programs","st4_l":"of desktop engineering software connected to AI","aud1":"Engineers & contractors","aud2":"Universities, lecturers & students","aud3":"Consultancies & professional firms","aud4":"Government & institutions","aud5":"NGOs & small businesses","b11":"QGIS atlases and spatial analysis","b12":"MIDAS Civil, STAAD.Pro and AutoCAD automation","b13":"Design reports, drawings and BoQ support","b21":"Email-to-spreadsheet record keeping","b22":"Daily briefings and advisories (n8n)","b23":"Cloud and on-premise schedules","b31":"Literature review and data analysis workflows","b32":"Course material, quizzes and lab sheets","b33":"Research maps, dashboards and story maps","b41":"Word, Excel and PDF deliverables","b42":"MS Project schedules and Gantt charts","b43":"Dashboards, brochures and websites","b51":"Excel VBA design tools with pass/fail checks","b52":"AI connectors (MCP) for desktop software","b53":"Internal web apps and data viewers","b61":"Prompting and AI assistants for daily work","b62":"Data privacy and safe-use policies","b63":"Team workshops, in English or Kiswahili","proc_p":"We start small and prove the value on your own data before anything grows. You keep every file, script and workflow we build.","t1":"30–60 min","t2":"1–2 weeks","t3":"2–6 weeks","t4":"Ongoing","fl0":"All","fl1":"Structures & design","fl2":"GIS & mapping","fl3":"Automation","fl4":"Planning & architecture","case":"Case","c1c":"Structural · Urban BRT road project","c1t":"HDPE culvert encasements, validated by 3D finite element analysis","c1p":"Four culvert encasement variants modelled and analysed in MIDAS Civil, with load cases, combinations and mesh checks set up through AI. The results became a reusable design workbook, Word design reports and AutoCAD drawings.","f11":"variants analysed","f12":"simple beam method over-conservative","f13":"FEA, not hand checks","c2c":"GIS · Two road contracts","c2t":"Self-updating road atlas","c2p":"A QGIS atlas that shows what has been inspected and built on two road contracts, refreshed and exported to PDF every day at noon.","f21":"of road mapped","f22":"A0 atlases","f23v":"Daily","f23":"update & PDF export","c3c":"Automation · Road construction","c3t":"Inspection-request (RFI) record keeping","c3p":"Two scheduled runs, one in the cloud and one on the office PC, read RFI emails, extract the details and keep the project sheets current.","f31":"automations, cloud & local","f32":"road projects","f33":"daily logging","c4c":"Architecture · Heritage setting","c4t":"Multi-storey car park beside a World Heritage site","c4p":"From research on heritage, ground and traffic constraints to a live five-storey ArchiCAD model with a parametric parking object.","f41":"footprint","f42":"storeys","f43":"one-way ramps","c5c":"Planning · Vocational Training Centre","c5t":"A 549-day construction schedule","c5p":"A realistic programme with overlapping trades, built and formatted inside MS Project, with A2 Gantt charts and a schedule report.","f51":"tasks","f52":"links incl. overlaps","f53":"days","c6c":"Cartography · RCMRD Arts & Maps 2026","c6t":"“The Thirsty Cloud” map story","c6p":"A competition entry linking planned coastal data centres to an island's freshwater and a marine conservation area, from approved data sources.","f61":"print layout","f62":"web apps","c7c":"Drawings · Residential RC building","c7t":"Structural model, analysis and drawing set","c7p":"A multi-storey reinforced concrete building modelled, loaded and analysed in STAAD.Pro, with the drawing set finished and plotted in AutoCAD.","f71":"drawing sheets","f72":"landscape","f73":"frame design","c8c":"Design tool · AASHTO LRFD 12.12","c8t":"Thermoplastic pipe culvert design tool","c8p":"An Excel VBA tool that runs HDPE and PVC culvert checks, sweeps cover depths, compares sizes and flags every pass or fail.","f81":"named ranges","f82":"VBA modules","f83":"input forms","c9c":"Automation · Two road contracts","c9t":"Daily road-weather advisory","c9p":"An n8n workflow that checks inspection requests and the forecast against the road specifications, then emails each site a morning advisory.","f91":"sites","f92":"daily start","f93":"specifications checked","c10c":"Integration · Engineering software","c10t":"AI connectors for desktop engineering software","c10p":"AI connected to the office PC's engineering programs, so analysis, scheduling and drafting can run inside them directly.","fa1":"programs connected","fa2":"loads modelled","fa3":"drawings fixed","wfiles":"Drawings, reports and workbooks contain client information and are shared on request, with permission.","ab1":"Founder","ab1v":"Innocent Pius Tesha, civil & structural engineer","ab2":"Focus","ab2v":"Engineering, GIS, automation, academic support, training","ab3":"Languages","ab3v":"English, Kiswahili","ab4":"Based","ab4v":"Zanzibar, Tanzania · working remotely worldwide","l1":"Email","l2":"Phone","l3":"Web","f_other":"Something else","f_ph":"e.g. We log 40 site inspection requests a week by hand from email into Excel.","ai_novoice":"This device has no voice installed for English, so replies are shown as text only."}};</script>
+<script>window.MF={"langs":[{"code":"en","name":"English","speech":"en-US"},{"code":"sw","name":"Kiswahili","speech":"sw-TZ"},{"code":"es","name":"Español","speech":"es-ES"},{"code":"de","name":"Deutsch","speech":"de-DE"},{"code":"tr","name":"Türkçe","speech":"tr-TR"},{"code":"zh","name":"中文","speech":"zh-CN"},{"code":"fil","name":"Filipino","speech":"fil-PH"},{"code":"ja","name":"日本語","speech":"ja-JP"},{"code":"ar","name":"العربية","speech":"ar-SA","dir":"rtl"},{"code":"ru","name":"Русский","speech":"ru-RU"},{"code":"uz","name":"Oʻzbekcha","speech":"uz-UZ"},{"code":"ky","name":"Кыргызча","speech":"ky-KG"},{"code":"fr","name":"Français","speech":"fr-FR"},{"code":"pt","name":"Português","speech":"pt-BR"},{"code":"hi","name":"हिन्दी","speech":"hi-IN"},{"code":"it","name":"Italiano","speech":"it-IT"},{"code":"ko","name":"한국어","speech":"ko-KR"},{"code":"id","name":"Bahasa Indonesia","speech":"id-ID"},{"code":"nl","name":"Nederlands","speech":"nl-NL"},{"code":"vi","name":"Tiếng Việt","speech":"vi-VN"},{"code":"pl","name":"Polski","speech":"pl-PL"},{"code":"th","name":"ไทย","speech":"th-TH"}],"i18nPath":"content/i18n/","assistantEndpoint":"https://mindfreedom-assistant.innoptesha.workers.dev/","siteUrl":"https://mindfreedom.co.tz","en":{"nav_services":"Services","nav_process":"How we work","nav_work":"Case studies","nav_about":"About","nav_cta":"Book a consultation","hero_eyebrow":"AI consultancy · Tanzania & beyond","hero_h1":"Put AI to work <em>inside<\/em> the tools you already use.","hero_lead":"We connect AI to engineering software, office workflows and research practice, then train your people to run it. Real projects, measured results, and no hype.","hero_cta1":"Book a free consultation","hero_cta2":"See the case studies","svc_h2":"AI for academics, professions and everyday work","svc_p":"Every engagement starts from a real task you do each week. We pick the right AI tools, connect them to your files and software, and leave you with a working system and the skills to keep it running.","s1_t":"Engineering & GIS with AI","s1_d":"AI that works directly inside your design, analysis and mapping software.","s2_t":"Workflow automation","s2_d":"Scheduled jobs that read your email, update your sheets and send the report.","s3_t":"Academic & research support","s3_d":"Responsible AI for teaching, study and research, within your institution's rules.","s4_t":"Documents, reports & planning","s4_d":"Faster proposals, reports and schedules that still read like your firm wrote them.","s5_t":"Custom tools & connectors","s5_d":"Small, dependable tools built around a specific calculation or system.","s6_t":"Training & workshops","s6_d":"Hands-on sessions so your team can use AI safely and well on its own.","proc_h2":"From one weekly task to a working system","p1_t":"Discover","p1_d":"A free call to map where time goes and which tasks AI can safely take on.","p2_t":"Pilot","p2_d":"We automate one real task end to end and measure the time saved.","p3_t":"Deploy","p3_d":"We connect it to your software, schedule it and document how it runs.","p4_t":"Train & support","p4_d":"Your team learns to run and extend it, with support when you need it.","work_h2":"Selected work, delivered with AI","work_p":"Ten recent projects across structures, GIS, planning and automation. Client and site names are withheld.","about_h2":"Engineers first, AI practitioners second","about_p":"Founded by Innocent Pius Tesha, a civil, structural and GIS engineer, Mind Freedom uses AI on live projects and measures what it saves. AI does the repetitive work; your people keep the judgement.","contact_h2":"Tell us about one task that eats your week.","contact_p":"We reply within one working day with a short plan and whether AI is the right fit. The first consultation is free.","f_name":"Name","f_email":"Email","f_org":"Organisation","f_topic":"Interested in","f_msg":"The task you'd like help with","f_send":"Send message","f_ok":"Thank you. Your message was sent; we will reply within one working day.","f_err":"The message could not be sent. Please email info@mindfreedom.co.tz directly.","f_invalid":"Please add your name, a valid email and a short description of the task.","wa":"Chat on WhatsApp","ai_title":"Mind Freedom assistant","ai_hello":"Hello! Ask me about our services, how we work, pricing or how to reach us.","ai_ph":"Type your question…","ai_price":"The first consultation is free. After it, we send a quote for your task before any work starts.","ai_contact":"Email info@mindfreedom.co.tz, call or WhatsApp +255 689 012 860, or use the contact form on this page.","ai_fallback":"I don't have an answer for that yet. Message us on WhatsApp or by email and a person will reply.","chip_price":"Pricing","chip_contact":"Contact","ai_voice":"Read replies aloud","ai_mic":"Speak","menu":"Menu","st1_l":"of road mapped in a self-updating GIS atlas","st2_u":"tasks","st2_l":"sequenced in a 549-day construction schedule","st3_u":"sheets","st3_l":"of structural drawings drafted and plotted","st4_u":"programs","st4_l":"of desktop engineering software connected to AI","aud1":"Engineers & contractors","aud2":"Universities, lecturers & students","aud3":"Consultancies & professional firms","aud4":"Government & institutions","aud5":"NGOs & small businesses","b11":"QGIS atlases and spatial analysis","b12":"MIDAS Civil, STAAD.Pro and AutoCAD automation","b13":"Design reports, drawings and BoQ support","b21":"Email-to-spreadsheet record keeping","b22":"Daily briefings and advisories (n8n)","b23":"Cloud and on-premise schedules","b31":"Literature review and data analysis workflows","b32":"Course material, quizzes and lab sheets","b33":"Research maps, dashboards and story maps","b41":"Word, Excel and PDF deliverables","b42":"MS Project schedules and Gantt charts","b43":"Dashboards, brochures and websites","b51":"Excel VBA design tools with pass/fail checks","b52":"AI connectors (MCP) for desktop software","b53":"Internal web apps and data viewers","b61":"Prompting and AI assistants for daily work","b62":"Data privacy and safe-use policies","b63":"Team workshops, in English or Kiswahili","proc_p":"We start small and prove the value on your own data before anything grows. You keep every file, script and workflow we build.","t1":"30–60 min","t2":"1–2 weeks","t3":"2–6 weeks","t4":"Ongoing","fl0":"All","fl1":"Structures & design","fl2":"GIS & mapping","fl3":"Automation","fl4":"Planning & architecture","case":"Case","c1c":"Structural · Urban BRT road project","c1t":"HDPE culvert encasements, validated by 3D finite element analysis","c1p":"Four culvert encasement variants modelled and analysed in MIDAS Civil, with load cases, combinations and mesh checks set up through AI. The results became a reusable design workbook, Word design reports and AutoCAD drawings.","f11":"variants analysed","f12":"simple beam method over-conservative","f13":"FEA, not hand checks","c2c":"GIS · Two road contracts","c2t":"Self-updating road atlas","c2p":"A QGIS atlas that shows what has been inspected and built on two road contracts, refreshed and exported to PDF every day at noon.","f21":"of road mapped","f22":"A0 atlases","f23v":"Daily","f23":"update & PDF export","c3c":"Automation · Road construction","c3t":"Inspection-request (RFI) record keeping","c3p":"Two scheduled runs, one in the cloud and one on the office PC, read RFI emails, extract the details and keep the project sheets current.","f31":"automations, cloud & local","f32":"road projects","f33":"daily logging","c4c":"Architecture · Heritage setting","c4t":"Multi-storey car park beside a World Heritage site","c4p":"From research on heritage, ground and traffic constraints to a live five-storey ArchiCAD model with a parametric parking object.","f41":"footprint","f42":"storeys","f43":"one-way ramps","c5c":"Planning · Vocational Training Centre","c5t":"A 549-day construction schedule","c5p":"A realistic programme with overlapping trades, built and formatted inside MS Project, with A2 Gantt charts and a schedule report.","f51":"tasks","f52":"links incl. overlaps","f53":"days","c6c":"Cartography · RCMRD Arts & Maps 2026","c6t":"“The Thirsty Cloud” map story","c6p":"A competition entry linking planned coastal data centres to an island's freshwater and a marine conservation area, from approved data sources.","f61":"print layout","f62":"web apps","c7c":"Drawings · Residential RC building","c7t":"Structural model, analysis and drawing set","c7p":"A multi-storey reinforced concrete building modelled, loaded and analysed in STAAD.Pro, with the drawing set finished and plotted in AutoCAD.","f71":"drawing sheets","f72":"landscape","f73":"frame design","c8c":"Design tool · AASHTO LRFD 12.12","c8t":"Thermoplastic pipe culvert design tool","c8p":"An Excel VBA tool that runs HDPE and PVC culvert checks, sweeps cover depths, compares sizes and flags every pass or fail.","f81":"named ranges","f82":"VBA modules","f83":"input forms","c9c":"Automation · Two road contracts","c9t":"Daily road-weather advisory","c9p":"An n8n workflow that checks inspection requests and the forecast against the road specifications, then emails each site a morning advisory.","f91":"sites","f92":"daily start","f93":"specifications checked","c10c":"Integration · Engineering software","c10t":"AI connectors for desktop engineering software","c10p":"AI connected to the office PC's engineering programs, so analysis, scheduling and drafting can run inside them directly.","fa1":"programs connected","fa2":"loads modelled","fa3":"drawings fixed","wfiles":"Drawings, reports and workbooks contain client information and are shared on request, with permission.","ab1":"Founder","ab1v":"Innocent Pius Tesha, civil & structural engineer","ab2":"Focus","ab2v":"Engineering, GIS, automation, academic support, training","ab3":"Languages","ab3v":"English, Kiswahili","ab4":"Based","ab4v":"Zanzibar, Tanzania · working remotely worldwide","l1":"Email","l2":"Phone","l3":"Web","f_other":"Something else","f_ph":"e.g. We log 40 site inspection requests a week by hand from email into Excel.","ai_novoice":"This device has no voice installed for English, so replies are shown as text only.","meta_title":"Mind Freedom AI Consultancy | AI for engineering, research and everyday work","meta_desc":"Mind Freedom AI Consultancy puts AI to work inside engineering software, office workflows and research, then trains your team to run it. Based in Zanzibar, Tanzania."}};</script>
 <script>
 (function(){
   'use strict';
@@ -604,6 +662,8 @@ html[lang="en"] [data-not="en"]{display:none}
   var cache={en:MF.en},cur='en',T=MF.en;
   function $(id){return document.getElementById(id)}
   function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
+  /* Meta Pixel events (the Pixel itself is in <head>); never let tracking break the page */
+  function px(kind,name,params){try{if(window.fbq)window.fbq(kind,name,params||{})}catch(e){}}
   var still=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   /* ---------- menu, year, case filters ---------- */
@@ -621,6 +681,7 @@ html[lang="en"] [data-not="en"]{display:none}
   var sel=$('lang');
   LANGS.forEach(function(l){var o=document.createElement('option');o.value=l.code;o.textContent=l.name;sel.appendChild(o)});
   function pick(){
+    if(window.MF_LANG&&byCode[window.MF_LANG])return window.MF_LANG; /* chosen in <head> */
     var s=store('mf-lang');if(s&&byCode[s])return s;
     var n=navigator.languages||[navigator.language||'en'];
     for(var i=0;i<n.length;i++){var c=String(n[i]).toLowerCase().split('-')[0];if(c==='tl')c='fil';if(byCode[c])return c}
@@ -628,6 +689,7 @@ html[lang="en"] [data-not="en"]{display:none}
   }
   function load(code){
     if(cache[code])return Promise.resolve(cache[code]);
+    if(window.MF_PRE&&code===window.MF_LANG){var p=window.MF_PRE;window.MF_PRE=null;return p.then(function(d){cache[code]=d;return d})}
     return fetch(MF.i18nPath+code+'.json').then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(d){cache[code]=d;return d});
   }
   function apply(){
@@ -636,13 +698,19 @@ html[lang="en"] [data-not="en"]{display:none}
     document.querySelectorAll('[data-i18n-html]').forEach(function(el){var v=T[el.getAttribute('data-i18n-html')];if(v!=null)el.innerHTML=v});
     document.querySelectorAll('[data-i18n-ph]').forEach(function(el){var v=T[el.getAttribute('data-i18n-ph')];if(v!=null)el.placeholder=v});
     document.querySelectorAll('[data-i18n-aria]').forEach(function(el){var v=T[el.getAttribute('data-i18n-aria')];if(v!=null)el.setAttribute('aria-label',v)});
+    var h=$('hero-h1');if(h)h.classList.toggle('long',h.textContent.length>56);
+    var md=document.querySelector('meta[name=description]');if(md&&T.meta_desc)md.setAttribute('content',T.meta_desc);
   }
   function setLang(code,save){
     return load(code).catch(function(){code='en';return MF.en}).then(function(d){
       cur=code;T=d;if(save)store('mf-lang',code);sel.value=code;apply();bot.reset();
     });
   }
-  sel.addEventListener('change',function(){setLang(sel.value,true)});
+  /* keep ?lang= in the address in step with the dropdown, so a shared link opens in the same language */
+  function setUrl(code){
+    try{var u=new URL(location.href);if(code==='en')u.searchParams.delete('lang');else u.searchParams.set('lang',code);history.replaceState(null,'',u);var k=document.querySelector('link[rel=canonical]');if(k)k.href=MF.siteUrl+'/'+(code==='en'?'':'?lang='+code)}catch(e){}
+  }
+  sel.addEventListener('change',function(){setLang(sel.value,true);setUrl(sel.value);px('trackCustom','ChangeLanguage',{lang:sel.value})});
 
   /* ---------- assistant ---------- */
   var bot=(function(){
@@ -651,13 +719,13 @@ html[lang="en"] [data-not="en"]{display:none}
     var synth=window.speechSynthesis,SR=window.SpeechRecognition||window.webkitSpeechRecognition;
     var voice=store('mf-voice')==='1';
     var KW={
-      price:['price','pricing','cost','fee','quote','how much','charge','bei','gharama','precio','costo','cuánto','preis','kosten','kostet','fiyat','ücret','价格','费用','多少钱','presyo','magkano','料金','価格','費用','سعر','تكلفة','цен','стоим','сколько','prix','tarif','combien','preço','custo','quanto','कीमत','क़ीमत','दाम','शुल्क','prezz','비용','가격','harga','biaya','prijs','giá','chi phí','cena','koszt','ราคา'],
-      contact:['contact','email','e-mail','phone','call','whatsapp','reach','mawasiliano','wasiliana','simu','contacto','kontakt','iletişim','telefon','联系','电话','kontak','連絡','問い合わせ','تواصل','اتصال','контакт','связ','téléphone','contato','संपर्क','contatt','연락','hubungi','liên hệ','ติดต่อ'],
-      services:['service','offer','what do you do','huduma','servicio','leistung','dienst','hizmet','服务','serbisyo','サービス','خدم','услуг','serviço','सेवा','serviz','서비스','layanan','dịch vụ','usług','บริการ'],
-      process:['process','how','start','begin','jinsi','cómo','wie','nasıl','流程','怎么','paano','進め方','どう','كيف','как','comment','como','कैसे','come','어떻게','방식','bagaimana','hoe','thế nào','cách','jak','อย่างไร','วิธี'],
-      work:['case','project','portfolio','example','mradi','miradi','proyecto','projekt','proje','案例','项目','proyekto','事例','実績','مشاريع','проект','кейс','projet','projeto','प्रोजेक्ट','progett','사례','프로젝트','proyek','dự án','โครงการ','ผลงาน'],
-      about:['who','about','founder','nani','kuhusu','quién','wer','über','kim','hakkında','关于','谁','sino','誰','について','кто','о нас','qui','quem','sobre','कौन','누구','소개','siapa','tentang','over','giới thiệu','kto','ใคร','เกี่ยวกับ'],
-      greet:['hello','hi','hey','habari','hujambo','mambo','hola','hallo','merhaba','你好','kumusta','こんにちは','مرحبا','привет','здравствуйте','bonjour','olá','नमस्ते','ciao','안녕','halo','xin chào','cześć','สวัสดี']
+      price:['price','pricing','cost','fee','quote','how much','charge','bei','gharama','precio','costo','cuánto','preis','kosten','kostet','fiyat','ücret','价格','费用','多少钱','presyo','magkano','料金','価格','費用','سعر','تكلفة','цен','стоим','сколько','prix','tarif','combien','preço','custo','quanto','कीमत','क़ीमत','दाम','शुल्क','prezz','비용','가격','harga','biaya','prijs','giá','chi phí','cena','koszt','ราคา','narx','qancha','baho','баа','канча'],
+      contact:['contact','email','e-mail','phone','call','whatsapp','reach','mawasiliano','wasiliana','simu','contacto','kontakt','iletişim','telefon','联系','电话','kontak','連絡','問い合わせ','تواصل','اتصال','контакт','связ','téléphone','contato','संपर्क','contatt','연락','hubungi','liên hệ','ติดต่อ','aloqa','bog‘lan','telefon','байланыш'],
+      services:['service','offer','what do you do','huduma','servicio','leistung','dienst','hizmet','服务','serbisyo','サービス','خدم','услуг','serviço','सेवा','serviz','서비스','layanan','dịch vụ','usług','บริการ','xizmat','кызмат'],
+      process:['process','how','start','begin','jinsi','cómo','wie','nasıl','流程','怎么','paano','進め方','どう','كيف','как','comment','como','कैसे','come','어떻게','방식','bagaimana','hoe','thế nào','cách','jak','อย่างไร','วิธี','qanday','кантип'],
+      work:['case','project','portfolio','example','mradi','miradi','proyecto','projekt','proje','案例','项目','proyekto','事例','実績','مشاريع','проект','кейс','projet','projeto','प्रोजेक्ट','progett','사례','프로젝트','proyek','dự án','โครงการ','ผลงาน','loyiha','долбоор'],
+      about:['who','about','founder','nani','kuhusu','quién','wer','über','kim','hakkında','关于','谁','sino','誰','について','кто','о нас','qui','quem','sobre','कौन','누구','소개','siapa','tentang','over','giới thiệu','kto','ใคร','เกี่ยวกับ','kim','haqida','ким','жөнүндө'],
+      greet:['hello','hi','hey','habari','hujambo','mambo','hola','hallo','merhaba','你好','kumusta','こんにちは','مرحبا','привет','здравствуйте','bonjour','olá','नमस्ते','ciao','안녕','halo','xin chào','cześć','สวัสดี','salom','assalomu','салам']
     };
     var HINT=[null,['gis','qgis','autocad','midas','staad','civil','engineer','map','drawing','structur'],['automat','n8n','workflow','spreadsheet'],['research','thesis','student','universit','academic','lectur'],['report','document','schedule','proposal','gantt'],['excel','vba','tool','mcp','connector','app'],['train','workshop','course','teach']];
     function has(q,list){return list.some(function(k){return /^[\x00-\x7f]+$/.test(k)?new RegExp('(^|[^a-z])'+k).test(q):q.indexOf(k)>-1})}
@@ -731,27 +799,49 @@ html[lang="en"] [data-not="en"]{display:none}
       log.appendChild(d);log.scrollTop=log.scrollHeight;return d;
     }
     function respond(text){add(text,'a');say(text)}
-    function ask(q){
+    var hist=[];   /* the conversation so far, sent to the server so follow-up questions make sense */
+    /* q: the visitor's words; intent: built-in topic to fall back on (quick buttons) */
+    function ask(q,intent){
       add(q,'u');
-      var local=function(){respond(answer(intentOf(q)))};
-      if(!MF.assistantEndpoint){local();return}
-      /* optional upgrade: a server-side endpoint that answers with a language model */
-      fetch(MF.assistantEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q,lang:cur})})
-        .then(function(r){if(!r.ok)throw 0;return r.json()})
-        .then(function(d){if(!d||!d.reply)throw 0;respond(String(d.reply))})
-        .catch(local);
+      var local=function(){var a=answer(intent||intentOf(q));respond(a);hist.push({role:'user',text:q},{role:'assistant',text:a})};
+      if(!MF.assistantEndpoint||!window.fetch){local();return}
+      /* the server answers with a language model, word by word; if it is unreachable, the built-in answers are used */
+      var box=add('…','a typing'),got='',done=false;
+      function finish(){
+        if(done)return;done=true;
+        if(!got.trim()){box.remove();local();return}
+        box.classList.remove('typing');box.textContent=got.trim();say(got.trim());
+        hist.push({role:'user',text:q},{role:'assistant',text:got.trim()});
+      }
+      fetch(MF.assistantEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q,lang:cur,history:hist.slice(-6),stream:true})})
+        .then(function(r){
+          if(!r.ok)throw 0;
+          var ct=r.headers.get('content-type')||'';
+          if(ct.indexOf('application/json')>=0||!r.body||!window.TextDecoder)   /* whole reply at once */
+            return r.json().then(function(d){if(!d||!d.reply)throw 0;got=String(d.reply);finish()});
+          var rd=r.body.getReader(),dec=new TextDecoder();
+          return (function pump(){
+            return rd.read().then(function(c){
+              if(c.done){got+=dec.decode();finish();return}
+              got+=dec.decode(c.value,{stream:true});
+              if(got.trim()){box.classList.remove('typing');box.textContent=got;log.scrollTop=log.scrollHeight}
+              return pump();
+            });
+          })();
+        })
+        .catch(function(){if(got.trim())finish();else{done=true;box.remove();local()}});
     }
     function greet(){if(!greeted){greeted=true;respond(T.ai_hello)}}
     function toggle(open){
       panel.hidden=!open;opener.setAttribute('aria-expanded',open);
       if(open){greet();inp.focus()}else{if(synth)synth.cancel();opener.focus()}
     }
-    opener.addEventListener('click',function(){toggle(panel.hidden)});
+    opener.addEventListener('click',function(){if(panel.hidden)px('trackCustom','OpenAssistant',{lang:cur});toggle(panel.hidden)});
     $('bot-close').addEventListener('click',function(){toggle(false)});
     panel.addEventListener('keydown',function(e){if(e.key==='Escape')toggle(false)});
     form.addEventListener('submit',function(e){e.preventDefault();var q=inp.value.trim();if(!q)return;inp.value='';ask(q)});
     $('bot-chips').addEventListener('click',function(e){
-      var t=e.target.closest('button');if(!t)return;add(t.textContent,'u');respond(answer(t.dataset.intent));
+      var t=e.target.closest('button');if(!t)return;ask(t.textContent,t.dataset.intent);
     });
     if(synth){
       synth.getVoices();if('onvoiceschanged' in synth)synth.onvoiceschanged=function(){synth.getVoices()};
@@ -770,7 +860,7 @@ html[lang="en"] [data-not="en"]{display:none}
         try{r.start()}catch(err){mic.classList.remove('on')}
       });
     }
-    return {reset:function(){log.textContent='';greeted=false;if(synth)synth.cancel();if(!panel.hidden)greet()}};
+    return {reset:function(){log.textContent='';greeted=false;hist=[];if(synth)synth.cancel();if(!panel.hidden)greet()}};
   })();
 
   /* ---------- contact form ---------- */
@@ -786,7 +876,7 @@ html[lang="en"] [data-not="en"]{display:none}
     fd.append('_subject','Website enquiry: '+cform.topic.value+' - '+n);fd.append('language',byCode[cur].name);
     fd.append('_template','table');fd.append('_captcha','false');
     fetch('https://formsubmit.co/ajax/info@mindfreedom.co.tz',{method:'POST',headers:{'Accept':'application/json'},body:fd}).then(function(r){return r.json()}).then(function(d){
-      if(d&&(d.success===true||d.success==='true')){cform.reset();st.textContent=T.f_ok;st.classList.add('ok')}
+      if(d&&(d.success===true||d.success==='true')){px('track','Lead',{content_category:cform.topic.value,lang:cur});cform.reset();st.textContent=T.f_ok;st.classList.add('ok')}
       else throw 0;
     }).catch(function(){st.textContent=T.f_err;st.classList.add('err')})
     .finally(function(){send.disabled=false;send.textContent=T.f_send});
@@ -818,9 +908,17 @@ html[lang="en"] [data-not="en"]{display:none}
   size();window.addEventListener('resize',function(){size();draw(performance.now())});
   loop(0);
 
+  /* ---------- Pixel: case studies seen (once per visit) ---------- */
+  (function(){
+    var w=$('work');if(!w||!('IntersectionObserver' in window))return;
+    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){px('track','ViewContent',{content_name:'Case studies',lang:cur});io.disconnect()}})},{threshold:.25});
+    io.observe(w);
+  })();
+
   /* ---------- start ---------- */
   var first=pick();sel.value=first;
-  if(first!=='en')setLang(first,false);
+  function show(){document.documentElement.classList.remove('mf-wait')}
+  if(first!=='en')setLang(first,false).then(show,show);else show();
 })();
 </script>
 
