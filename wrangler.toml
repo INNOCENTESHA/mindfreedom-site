@@ -1,0 +1,10 @@
+name = "mindfreedom-assistant"
+main = "assistant-worker.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+
+# The API key is NOT here. It is stored encrypted on Cloudflare as the secret AI_API_KEY
+# (deploy-assistant.ps1 does this). Optional plain settings:
+# [vars]
+# AI_PROVIDER = "anthropic"   # or "openai" / "gemini"; normally recognised from the key
+# AI_MODEL = ""               # leave out to use the default model for the provider
