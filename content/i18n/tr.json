@@ -176,5 +176,12 @@
  "f_ph": "örn. Haftada 40 şantiye denetim talebini e-postadan Excel'e elle işliyoruz.",
  "ai_novoice": "Bu cihazda Türkçe ses yüklü değil; yanıtlar yalnızca metin olarak gösterilir.",
  "meta_title": "Mind Freedom AI Consultancy | Mühendislik, araştırma ve günlük iş için yapay zekâ",
- "meta_desc": "Mind Freedom AI Consultancy yapay zekâyı mühendislik yazılımlarına, ofis iş akışlarına ve araştırmaya entegre eder, ardından ekibinizi onu yönetmeye eğitir. Zanzibar, Tanzanya merkezli."
+ "meta_desc": "Mind Freedom AI Consultancy yapay zekâyı mühendislik yazılımlarına, ofis iş akışlarına ve araştırmaya entegre eder, ardından ekibinizi onu yönetmeye eğitir. Zanzibar, Tanzanya merkezli.",
+ "chip_book": "Görüşme ayarla",
+ "bk_pick": "Size uygun bir saat seçin (yerel saatinizle gösterilir):",
+ "bk_confirm": "Randevuyu onayla",
+ "bk_done": "{time} için randevunuz alındı. Google Meet bağlantılı takvim daveti e-postanıza gönderiliyor.",
+ "bk_taken": "Üzgünüz, bu saat az önce doldu. Güncel boş saatler:",
+ "bk_fail": "Randevu tamamlanamadı. Lütfen bu randevu sayfasını kullanın:",
+ "bk_none": "Şu anda boş saat görünmüyor. Lütfen bu randevu sayfasını kullanın veya bize ulaşın:"
 }

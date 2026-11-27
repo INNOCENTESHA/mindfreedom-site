@@ -176,5 +176,12 @@
  "f_ph": "p. ej., registramos a mano 40 solicitudes de inspección de obra por semana, del correo a Excel.",
  "ai_novoice": "Este dispositivo no tiene una voz en español instalada; las respuestas se muestran solo como texto.",
  "meta_title": "Mind Freedom AI Consultancy | IA para ingeniería, investigación y el trabajo diario",
- "meta_desc": "Mind Freedom AI Consultancy pone la IA a trabajar dentro del software de ingeniería, los flujos de oficina y la investigación, y forma a su equipo para gestionarla. Con sede en Zanzíbar, Tanzania."
+ "meta_desc": "Mind Freedom AI Consultancy pone la IA a trabajar dentro del software de ingeniería, los flujos de oficina y la investigación, y forma a su equipo para gestionarla. Con sede en Zanzíbar, Tanzania.",
+ "chip_book": "Reservar una llamada",
+ "bk_pick": "Elige el horario que te convenga (en tu hora local):",
+ "bk_confirm": "Confirmar reserva",
+ "bk_done": "Reservado para {time}. Te enviamos por correo una invitación de calendario con el enlace de Google Meet.",
+ "bk_taken": "Lo sentimos, ese horario se acaba de ocupar. Estos son los horarios libres más recientes:",
+ "bk_fail": "No se pudo completar la reserva. Usa esta página de reservas:",
+ "bk_none": "Ahora mismo no hay horarios libres. Usa esta página de reservas o contáctanos:"
 }

@@ -176,5 +176,12 @@
  "f_ph": "hal. Mano-mano naming itinatala ang 40 hiling sa inspeksiyon ng site kada linggo mula email papuntang Excel.",
  "ai_novoice": "Walang naka-install na boses sa Filipino sa device na ito, kaya text lang ang mga sagot.",
  "meta_title": "Mind Freedom AI Consultancy | AI para sa engineering, pananaliksik at araw-araw na trabaho",
- "meta_desc": "Inilalagay ng Mind Freedom AI Consultancy ang AI sa loob ng engineering software, mga gawain sa opisina at pananaliksik, saka tinuturuan ang inyong team na patakbuhin ito. Nakabase sa Zanzibar, Tanzania."
+ "meta_desc": "Inilalagay ng Mind Freedom AI Consultancy ang AI sa loob ng engineering software, mga gawain sa opisina at pananaliksik, saka tinuturuan ang inyong team na patakbuhin ito. Nakabase sa Zanzibar, Tanzania.",
+ "chip_book": "Mag-book ng tawag",
+ "bk_pick": "Pumili ng oras na babagay sa iyo (ipinapakita sa iyong lokal na oras):",
+ "bk_confirm": "Kumpirmahin ang booking",
+ "bk_done": "Naka-book para sa {time}. Papunta na sa iyong email ang imbitasyon sa kalendaryo na may link ng Google Meet.",
+ "bk_taken": "Paumanhin, nakuha na ang oras na iyon. Narito ang pinakabagong bakanteng oras:",
+ "bk_fail": "Hindi natapos ang booking. Pakigamit ang booking page na ito:",
+ "bk_none": "Walang bakanteng oras sa ngayon. Pakigamit ang booking page na ito o makipag-ugnayan sa amin:"
 }

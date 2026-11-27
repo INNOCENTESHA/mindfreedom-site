@@ -176,5 +176,12 @@
  "f_ph": "Masalan: haftasiga 40 ta obyekt tekshiruvi so‘rovini pochtadan Excel’ga qo‘lda kiritamiz.",
  "ai_novoice": "Bu qurilmada o‘zbek tilidagi ovoz o‘rnatilmagan, shuning uchun javoblar faqat matn ko‘rinishida chiqadi.",
  "meta_title": "Mind Freedom AI Consultancy | Muhandislik, ilm-fan va kundalik ish uchun sun’iy intellekt",
- "meta_desc": "Mind Freedom AI Consultancy sun’iy intellektni muhandislik dasturlari, ofis jarayonlari va ilmiy ishlarga joriy qiladi, so‘ng jamoangizni uni boshqarishga o‘rgatadi. Zanzibar, Tanzaniyada joylashgan."
+ "meta_desc": "Mind Freedom AI Consultancy sun’iy intellektni muhandislik dasturlari, ofis jarayonlari va ilmiy ishlarga joriy qiladi, so‘ng jamoangizni uni boshqarishga o‘rgatadi. Zanzibar, Tanzaniyada joylashgan.",
+ "chip_book": "Qoʻngʻiroqqa yozilish",
+ "bk_pick": "Oʻzingizga qulay vaqtni tanlang (mahalliy vaqtingizda koʻrsatilgan):",
+ "bk_confirm": "Yozilishni tasdiqlash",
+ "bk_done": "{time} ga yozildingiz. Google Meet havolasi bilan taqvim taklifnomasi elektron pochtangizga yuborilmoqda.",
+ "bk_taken": "Kechirasiz, bu vaqt hozirgina band qilindi. Mana eng soʻnggi boʻsh vaqtlar:",
+ "bk_fail": "Yozilishni yakunlab boʻlmadi. Iltimos, ushbu bron sahifasidan foydalaning:",
+ "bk_none": "Hozircha boʻsh vaqt yoʻq. Iltimos, ushbu bron sahifasidan foydalaning yoki biz bilan bogʻlaning:"
 }

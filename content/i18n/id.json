@@ -176,5 +176,12 @@
  "f_ph": "mis. Kami mencatat 40 permintaan inspeksi lapangan per minggu secara manual dari email ke Excel.",
  "ai_novoice": "Perangkat ini tidak memiliki suara bahasa Indonesia, jadi jawaban hanya ditampilkan sebagai teks.",
  "meta_title": "Mind Freedom AI Consultancy | AI untuk teknik, riset, dan pekerjaan sehari-hari",
- "meta_desc": "Mind Freedom AI Consultancy menjalankan AI di dalam perangkat lunak teknik, alur kerja kantor, dan riset, lalu melatih tim Anda untuk mengelolanya. Berbasis di Zanzibar, Tanzania."
+ "meta_desc": "Mind Freedom AI Consultancy menjalankan AI di dalam perangkat lunak teknik, alur kerja kantor, dan riset, lalu melatih tim Anda untuk mengelolanya. Berbasis di Zanzibar, Tanzania.",
+ "chip_book": "Jadwalkan panggilan",
+ "bk_pick": "Pilih waktu yang cocok (ditampilkan dalam waktu setempat Anda):",
+ "bk_confirm": "Konfirmasi jadwal",
+ "bk_done": "Terjadwal pada {time}. Undangan kalender dengan tautan Google Meet sedang dikirim ke email Anda.",
+ "bk_taken": "Maaf, waktu itu baru saja terisi. Berikut waktu kosong terbaru:",
+ "bk_fail": "Penjadwalan tidak dapat diselesaikan. Silakan gunakan halaman pemesanan ini:",
+ "bk_none": "Belum ada waktu kosong saat ini. Silakan gunakan halaman pemesanan ini atau hubungi kami:"
 }

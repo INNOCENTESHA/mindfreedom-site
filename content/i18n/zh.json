@@ -176,5 +176,12 @@
  "f_ph": "例如：我们每周要把 40 份现场报验申请从邮件手工录入 Excel。",
  "ai_novoice": "此设备未安装中文语音，回复仅以文字显示。",
  "meta_title": "Mind Freedom AI Consultancy | 面向工程、研究和日常工作的人工智能",
- "meta_desc": "Mind Freedom AI Consultancy 将人工智能接入工程软件、办公流程和科研工作，并培训您的团队自行运行。总部位于坦桑尼亚桑给巴尔。"
+ "meta_desc": "Mind Freedom AI Consultancy 将人工智能接入工程软件、办公流程和科研工作，并培训您的团队自行运行。总部位于坦桑尼亚桑给巴尔。",
+ "chip_book": "预约通话",
+ "bk_pick": "请选择合适的时间（按您的当地时间显示）：",
+ "bk_confirm": "确认预约",
+ "bk_done": "已预约 {time}。附有 Google Meet 链接的日历邀请正在发送到您的邮箱。",
+ "bk_taken": "抱歉，该时间刚刚被预约。以下是最新的空闲时间：",
+ "bk_fail": "预约未能完成。请使用此预约页面：",
+ "bk_none": "目前没有可预约的空闲时间。请使用此预约页面或联系我们："
 }

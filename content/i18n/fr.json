@@ -176,5 +176,12 @@
  "f_ph": "ex. : nous saisissons à la main 40 demandes de réception de chantier par semaine, des e-mails vers Excel.",
  "ai_novoice": "Aucune voix française n'est installée sur cet appareil ; les réponses s'affichent en texte seulement.",
  "meta_title": "Mind Freedom AI Consultancy | L’IA pour l’ingénierie, la recherche et le travail quotidien",
- "meta_desc": "Mind Freedom AI Consultancy intègre l’IA dans les logiciels d’ingénierie, les processus de bureau et la recherche, puis forme votre équipe à la piloter. Basée à Zanzibar, en Tanzanie."
+ "meta_desc": "Mind Freedom AI Consultancy intègre l’IA dans les logiciels d’ingénierie, les processus de bureau et la recherche, puis forme votre équipe à la piloter. Basée à Zanzibar, en Tanzanie.",
+ "chip_book": "Réserver un appel",
+ "bk_pick": "Choisissez un créneau qui vous convient (affiché à votre heure locale) :",
+ "bk_confirm": "Confirmer la réservation",
+ "bk_done": "Réservé pour {time}. Une invitation d’agenda avec le lien Google Meet arrive dans votre boîte mail.",
+ "bk_taken": "Désolé, ce créneau vient d’être pris. Voici les créneaux libres les plus récents :",
+ "bk_fail": "La réservation n’a pas pu aboutir. Veuillez utiliser cette page de réservation :",
+ "bk_none": "Aucun créneau libre pour le moment. Utilisez cette page de réservation ou contactez-nous :"
 }

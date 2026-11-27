@@ -3,13 +3,22 @@ main = "assistant-worker.js"
 compatibility_date = "2026-11-01"
 workers_dev = true
 
-# The API key is NOT here. Keep it on Cloudflare as the encrypted secret AI_API_KEY.
-# These plain settings match what is set in the Cloudflare dashboard; keep them here so a
-# `wrangler deploy` does not remove them.
 [vars]
 AI_PROVIDER = "gemini"
-AI_MODEL = "gemini-3.8-flash"
-# AI_SEARCH = "off"           # uncomment to stop Gemini from using Google Search
+AI_MODEL = "gemini-3.5-flash-lite"
+AI_SEARCH = "off"
+# BOOKING_URL, NOTIFY_EMAIL, NOTIFY_CC, GOOGLE_CLIENT_ID: set in the Cloudflare dashboard
+# Secrets (dashboard only): AI_API_KEY, GOOGLE_CLIENT_SECRET, META_TOKEN
+
+[[send_email]]
+name = "MAILER"
+
+# [[kv_namespaces]]
+# binding = "STATE"
+# id = "<the KV namespace id from the dashboard>"
+
+[triggers]
+crons = ["17 */3 * * *", "2 14 * * *"]   # watchdog every 3 hours; ads report 17:02 EAT
 
 [observability]
 enabled = true

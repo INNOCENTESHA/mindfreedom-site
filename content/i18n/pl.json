@@ -176,5 +176,12 @@
  "f_ph": "np. Co tydzień ręcznie przepisujemy 40 zgłoszeń do odbioru z budowy z poczty e-mail do Excela.",
  "ai_novoice": "Na tym urządzeniu nie ma zainstalowanego polskiego głosu, więc odpowiedzi są pokazywane tylko jako tekst.",
  "meta_title": "Mind Freedom AI Consultancy | AI dla inżynierii, nauki i codziennej pracy",
- "meta_desc": "Mind Freedom AI Consultancy wprowadza AI do oprogramowania inżynierskiego, pracy biurowej i badań, a potem szkoli Twój zespół, by sam ją obsługiwał. Siedziba na Zanzibarze w Tanzanii."
+ "meta_desc": "Mind Freedom AI Consultancy wprowadza AI do oprogramowania inżynierskiego, pracy biurowej i badań, a potem szkoli Twój zespół, by sam ją obsługiwał. Siedziba na Zanzibarze w Tanzanii.",
+ "chip_book": "Umów rozmowę",
+ "bk_pick": "Wybierz dogodny termin (w Twoim czasie lokalnym):",
+ "bk_confirm": "Potwierdź rezerwację",
+ "bk_done": "Zarezerwowano na {time}. Zaproszenie do kalendarza z linkiem Google Meet jest już w drodze na Twój e-mail.",
+ "bk_taken": "Niestety ten termin właśnie zajęto. Oto najnowsze wolne terminy:",
+ "bk_fail": "Nie udało się zakończyć rezerwacji. Skorzystaj z tej strony rezerwacji:",
+ "bk_none": "Obecnie brak wolnych terminów. Skorzystaj z tej strony rezerwacji lub skontaktuj się z nami:"
 }

@@ -176,5 +176,12 @@
  "f_ph": "bijv. We zetten wekelijks 40 keuringsaanvragen van de bouwplaats met de hand over van e-mail naar Excel.",
  "ai_novoice": "Op dit apparaat is geen Nederlandse stem geïnstalleerd; antwoorden worden alleen als tekst getoond.",
  "meta_title": "Mind Freedom AI Consultancy | AI voor engineering, onderzoek en dagelijks werk",
- "meta_desc": "Mind Freedom AI Consultancy zet AI aan het werk in engineeringsoftware, kantoorprocessen en onderzoek, en traint uw team om het zelf te beheren. Gevestigd in Zanzibar, Tanzania."
+ "meta_desc": "Mind Freedom AI Consultancy zet AI aan het werk in engineeringsoftware, kantoorprocessen en onderzoek, en traint uw team om het zelf te beheren. Gevestigd in Zanzibar, Tanzania.",
+ "chip_book": "Gesprek inplannen",
+ "bk_pick": "Kies een tijd die u schikt (in uw lokale tijd):",
+ "bk_confirm": "Afspraak bevestigen",
+ "bk_done": "Ingepland voor {time}. Een agenda-uitnodiging met de Google Meet-link is onderweg naar uw e-mail.",
+ "bk_taken": "Sorry, die tijd is net bezet. Dit zijn de nieuwste vrije tijden:",
+ "bk_fail": "De afspraak kon niet worden voltooid. Gebruik deze boekingspagina:",
+ "bk_none": "Er zijn nu geen vrije tijden zichtbaar. Gebruik deze boekingspagina of neem contact op:"
 }

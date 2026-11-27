@@ -176,5 +176,12 @@
  "f_ph": "e.g. We log 40 site inspection requests a week by hand from email into Excel.",
  "ai_novoice": "This device has no voice installed for English, so replies are shown as text only.",
  "meta_title": "Mind Freedom AI Consultancy | AI for engineering, research and everyday work",
- "meta_desc": "Mind Freedom AI Consultancy puts AI to work inside engineering software, office workflows and research, then trains your team to run it. Based in Zanzibar, Tanzania."
+ "meta_desc": "Mind Freedom AI Consultancy puts AI to work inside engineering software, office workflows and research, then trains your team to run it. Based in Zanzibar, Tanzania.",
+ "chip_book": "Book a call",
+ "bk_pick": "Pick a time that suits you (shown in your local time):",
+ "bk_confirm": "Confirm booking",
+ "bk_done": "Booked for {time}. A calendar invitation with the Google Meet link is on its way to your email.",
+ "bk_taken": "Sorry, that time was just taken. Here are the latest free times:",
+ "bk_fail": "The booking could not be completed. Please use this booking page:",
+ "bk_none": "No free times are showing right now. Please use this booking page or contact us:"
 }

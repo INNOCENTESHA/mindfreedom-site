@@ -176,5 +176,12 @@
  "f_ph": "mf. Tunaingiza maombi 40 ya ukaguzi wa eneo la kazi kila wiki kwa mkono kutoka barua pepe hadi Excel.",
  "ai_novoice": "Kifaa hiki hakina sauti ya Kiswahili, kwa hiyo majibu yanaonyeshwa kwa maandishi tu.",
  "meta_title": "Mind Freedom AI Consultancy | AI kwa uhandisi, utafiti na kazi za kila siku",
- "meta_desc": "Mind Freedom AI Consultancy inaweka AI ndani ya programu za uhandisi, kazi za ofisini na utafiti, kisha inafundisha timu yako kuiendesha. Tuko Zanzibar, Tanzania."
+ "meta_desc": "Mind Freedom AI Consultancy inaweka AI ndani ya programu za uhandisi, kazi za ofisini na utafiti, kisha inafundisha timu yako kuiendesha. Tuko Zanzibar, Tanzania.",
+ "chip_book": "Weka miadi ya simu",
+ "bk_pick": "Chagua muda unaokufaa (umeonyeshwa kwa saa za eneo lako):",
+ "bk_confirm": "Thibitisha miadi",
+ "bk_done": "Miadi imewekwa {time}. Mwaliko wa kalenda wenye kiungo cha Google Meet unatumwa kwenye barua pepe yako.",
+ "bk_taken": "Samahani, muda huo umechukuliwa sasa hivi. Hii ni nafasi zilizo wazi kwa sasa:",
+ "bk_fail": "Miadi haikuweza kukamilika. Tafadhali tumia ukurasa huu wa kuweka miadi:",
+ "bk_none": "Hakuna nafasi zilizo wazi kwa sasa. Tafadhali tumia ukurasa huu wa kuweka miadi au wasiliana nasi:"
 }

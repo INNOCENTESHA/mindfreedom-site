@@ -176,5 +176,12 @@
  "f_ph": "z. B.: Wir übertragen pro Woche 40 Prüfanforderungen von der Baustelle per Hand aus E-Mails nach Excel.",
  "ai_novoice": "Auf diesem Gerät ist keine deutsche Stimme installiert; Antworten werden nur als Text angezeigt.",
  "meta_title": "Mind Freedom AI Consultancy | KI für Ingenieurwesen, Forschung und Arbeitsalltag",
- "meta_desc": "Mind Freedom AI Consultancy bringt KI in Ingenieursoftware, Büroabläufe und Forschung und schult Ihr Team, sie selbst zu betreiben. Sitz in Sansibar, Tansania."
+ "meta_desc": "Mind Freedom AI Consultancy bringt KI in Ingenieursoftware, Büroabläufe und Forschung und schult Ihr Team, sie selbst zu betreiben. Sitz in Sansibar, Tansania.",
+ "chip_book": "Gespräch buchen",
+ "bk_pick": "Wählen Sie einen passenden Termin (in Ihrer Ortszeit):",
+ "bk_confirm": "Buchung bestätigen",
+ "bk_done": "Gebucht für {time}. Eine Kalendereinladung mit dem Google-Meet-Link ist unterwegs in Ihr Postfach.",
+ "bk_taken": "Dieser Termin wurde gerade vergeben. Hier die aktuell freien Termine:",
+ "bk_fail": "Die Buchung konnte nicht abgeschlossen werden. Bitte nutzen Sie diese Buchungsseite:",
+ "bk_none": "Zurzeit werden keine freien Termine angezeigt. Bitte nutzen Sie diese Buchungsseite oder kontaktieren Sie uns:"
 }
