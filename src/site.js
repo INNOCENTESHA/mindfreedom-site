@@ -142,7 +142,7 @@
       log.appendChild(d);log.scrollTop=log.scrollHeight;return d;
     }
     function respond(text){add(text,'a');say(text)}
-    var hist=[];   /* the conversation so far, sent to the server so follow-up questions make sense */
+    var hist=[],leadSent=false,SIG='\u001eLEAD';   /* the conversation so far, sent to the server so follow-up questions make sense */
     /* q: the visitor's words; intent: built-in topic to fall back on (quick buttons) */
     function ask(q,intent){
       add(q,'u');
@@ -152,22 +152,23 @@
       var box=add('…','a typing'),got='',done=false;
       function finish(){
         if(done)return;done=true;
+        if(got.indexOf(SIG)>=0){got=got.split(SIG).join('');if(!leadSent){leadSent=true;px('track','Lead',{content_category:'assistant',lang:cur})}}
         if(!got.trim()){box.remove();local();return}
         box.classList.remove('typing');box.textContent=got.trim();say(got.trim());
         hist.push({role:'user',text:q},{role:'assistant',text:got.trim()});
       }
-      fetch(MF.assistantEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q,lang:cur,history:hist.slice(-6),stream:true})})
+      fetch(MF.assistantEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q,lang:cur,history:hist.slice(-6),stream:true,leadSent:leadSent})})
         .then(function(r){
           if(!r.ok)throw 0;
           var ct=r.headers.get('content-type')||'';
           if(ct.indexOf('application/json')>=0||!r.body||!window.TextDecoder)   /* whole reply at once */
-            return r.json().then(function(d){if(!d||!d.reply)throw 0;got=String(d.reply);finish()});
+            return r.json().then(function(d){if(!d||!d.reply)throw 0;got=String(d.reply)+(d.lead?SIG:'');finish()});
           var rd=r.body.getReader(),dec=new TextDecoder();
           return (function pump(){
             return rd.read().then(function(c){
               if(c.done){got+=dec.decode();finish();return}
               got+=dec.decode(c.value,{stream:true});
-              if(got.trim()){box.classList.remove('typing');box.textContent=got;log.scrollTop=log.scrollHeight}
+              if(got.trim()){box.classList.remove('typing');box.textContent=got.split(SIG).join('');log.scrollTop=log.scrollHeight}
               return pump();
             });
           })();
@@ -203,7 +204,7 @@
         try{r.start()}catch(err){mic.classList.remove('on')}
       });
     }
-    return {reset:function(){log.textContent='';greeted=false;hist=[];if(synth)synth.cancel();if(!panel.hidden)greet()}};
+    return {reset:function(){log.textContent='';greeted=false;hist=[];leadSent=false;if(synth)synth.cancel();if(!panel.hidden)greet()}};
   })();
 
   /* ---------- contact form ---------- */
@@ -219,7 +220,11 @@
     fd.append('_subject','Website enquiry: '+cform.topic.value+' - '+n);fd.append('language',byCode[cur].name);
     fd.append('_template','table');fd.append('_captcha','false');
     fetch('https://formsubmit.co/ajax/info@mindfreedom.co.tz',{method:'POST',headers:{'Accept':'application/json'},body:fd}).then(function(r){return r.json()}).then(function(d){
-      if(d&&(d.success===true||d.success==='true')){px('track','Lead',{content_category:cform.topic.value,lang:cur});cform.reset();st.textContent=T.f_ok;st.classList.add('ok')}
+      if(d&&(d.success===true||d.success==='true')){px('track','Lead',{content_category:cform.topic.value,lang:cur});
+        /* the follow-up agent drafts a reply for the owner to approve; it never writes to the visitor itself */
+        if(MF.assistantEndpoint)try{fetch(MF.assistantEndpoint.replace(/\/?$/,'/enquiry'),{method:'POST',headers:{'Content-Type':'application/json'},keepalive:true,
+          body:JSON.stringify({name:n,email:em,organisation:(cform.org&&cform.org.value)||'',topic:cform.topic.value,message:msg,lang:cur})}).catch(function(){})}catch(err){}
+        cform.reset();st.textContent=T.f_ok;st.classList.add('ok')}
       else throw 0;
     }).catch(function(){st.textContent=T.f_err;st.classList.add('err')})
     .finally(function(){send.disabled=false;send.textContent=T.f_send});
